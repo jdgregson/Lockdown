@@ -26,6 +26,7 @@ Param (
     [switch]$GetWhitelist,
     [string]$Whitelist,
     [string]$CheckWhitelist,
+    [switch]$EditWhitelist,
     [switch]$Pulse,
     [switch]$SetConfigPath,
     [switch]$Service
@@ -77,6 +78,11 @@ function Test-Whitelist {
     }
 
     return "FALSE"
+}
+
+
+function Edit-Whitelist {
+    notepad.exe $config.DeviceWhitelistPath
 }
 
 
@@ -300,6 +306,8 @@ if ($install) {
     Add-ToWhitelist $Whitelist
 } elseif ($CheckWhitelist) {
     Test-Whitelist $CheckWhitelist
+} elseif ($EditWhitelist) {
+    Edit-Whitelist
 } elseif ($reload) {
     Stop-LockdownTask
     Start-LockdownTask
