@@ -7,8 +7,8 @@
 # This file is used to retrieve the Lockdown policy. It must be run as an
 # administrator.
 #
-# Copyright (C) jdgregson, 2018
-# Author: Jonathan Gregson <jdgregson@gmail.com>
+# Copyright (C) jdgregson, 2019
+# Author: Jonathan Gregson <jonathan@jdgregson.com>
 
 Param (
     [switch]$DeviceWhitelistPath,

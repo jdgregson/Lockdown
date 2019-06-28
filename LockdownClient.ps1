@@ -1,3 +1,14 @@
+# Lockdown is a system hardening tool which applies, enforces, and reports on
+# various system hardening settings according to a "lockdown policy". For
+# example, it can lock the system when various USB devices are inserted, and
+# send alerts when backups are out of date or pre-defined anti-virus settings
+# and components are disabled.
+#
+# This file provides a system tray icon and desktop notifications for Lockdown.
+#
+# Copyright (C) jdgregson, 2019
+# Author: Jonathan Gregson <jonathan@jdgregson.com>
+
 Param (
     [switch]$alert,
     [string]$message,

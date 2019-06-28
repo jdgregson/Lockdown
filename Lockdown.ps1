@@ -9,8 +9,8 @@
 # waiting for events. It is intended to be run via a schedules task which is not
 # visible to standard users.
 #
-# Copyright (C) jdgregson, 2018
-# Author: Jonathan Gregson <jdgregson@gmail.com>
+# Copyright (C) jdgregson, 2019
+# Author: Jonathan Gregson <jonathan@jdgregson.com>
 
 Param (
     [switch]$Install,

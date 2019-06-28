@@ -1,3 +1,14 @@
+# Lockdown is a system hardening tool which applies, enforces, and reports on
+# various system hardening settings according to a "lockdown policy". For
+# example, it can lock the system when various USB devices are inserted, and
+# send alerts when backups are out of date or pre-defined anti-virus settings
+# and components are disabled.
+#
+# This file provides a curses-like GUI in PowerShell which allows for policy
+# management, log review, and monitoring of various system services.
+#
+# Copyright (C) jdgregson, 2019
+# Author: Jonathan Gregson <jonathan@jdgregson.com>
 
 Import-Module psui1 -Force -DisableNameChecking
 $LogWindowStart = 54
