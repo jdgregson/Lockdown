@@ -50,6 +50,7 @@ function Add-ToWhitelist {
     )
 
     $DeviceID | Add-Content $config.DeviceWhitelistPath -Encoding "UTF8"
+    (Get-Content $config.DeviceWhitelistPath) -split "`n" | Sort-Object | Set-Content $config.DeviceWhitelistPath -Encoding "UTF8"
 }
 
 
