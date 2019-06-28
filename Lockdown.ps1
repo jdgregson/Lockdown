@@ -270,7 +270,7 @@ function Enable-Lockdown {
     Register-WmiEvent -Query $Query -SourceIdentifier "LockdownQuery" -Action {
         $id = $EventArgs.NewEvent.TargetInstance["DeviceID"]
         if ((Lockdown -CheckWhitelist "$id") -eq "TRUE") {
-            Lockdown -log "Whitelisted device detected. Device ID: $id"
+            Lockdown -log "Whitelisted device detected."
         } else {
             Lockdown -log "New device detected. DeviceID: $id"
             if ((Get-LockdownPolicy -LockOnNewDevice) -eq "TRUE") {
