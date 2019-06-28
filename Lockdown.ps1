@@ -48,7 +48,7 @@ function Add-ToWhitelist {
         [string]$DeviceID
     )
 
-    $DeviceID >> $config.DeviceWhitelistPath
+    $DeviceID | Add-Content $config.DeviceWhitelistPath -Encoding "UTF8"
 }
 
 
@@ -60,7 +60,7 @@ function Test-Whitelist {
     $whitelist = (Get-Whitelist)
     if ($whitelist -contains $ID) {
         return "TRUE"
-    } 
+    }
 
     $wildcardWhitelist = @($whitelist | ? {$_ -match "\*"})
     for ($i = 0; $i -lt $wildcardWhitelist.length; $i++) {
@@ -153,7 +153,7 @@ function Get-LockdownStatus {
         }
     } else {
         "N/A"
-    } 
+    }
 }
 
 
