@@ -110,7 +110,7 @@ function Write-LogMessage {
 
     $timestamp = $(Get-Date -UFormat  "[%m/%d/%Y %H:%M:%S]")
     if($message) {
-        "$timestamp`: $message" >> $config.LogPath
+        "$timestamp`: $message" | Add-Content $config.LogPath -Encoding "UTF8"
     }
 }
 
