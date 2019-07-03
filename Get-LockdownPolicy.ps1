@@ -13,6 +13,7 @@
 Param (
     [switch]$DeviceWhitelistPath,
     [switch]$LogPath,
+    [switch]$LogLevel,
     [switch]$StatusFilePath,
     [switch]$AlertFilePath,
     [switch]$LockOnNewDevice,
@@ -28,6 +29,7 @@ function Get-DefaultPolicy {
     return New-Object -Type PSObject -Property @{
         DeviceWhitelistPath = "C:\lockdown\etc\whitelist"
         LogPath = "C:\lockdown\var\lockdown.log"
+        LogLevel = "MESSAGE"
         StatusFilePath = "C:\lockdown\var\lockdown.status"
         AlertFilePath = "C:\lockdown\var\lockdown.alert"
         LockOnNewDevice = "TRUE"
@@ -75,6 +77,8 @@ if ($DeviceWhitelistPath) {
     return $config.Status
 } elseif ($Unapplied) {
     return $config.Unapplied
-} else {
+} elseif ($LogLevel) {
+    return $config.LogLevel
+}  else {
     return $config
 }

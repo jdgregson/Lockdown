@@ -22,6 +22,7 @@ Param (
     [string]$Status,
     [string]$Unapplied,
     [switch]$NoReload,
+    [string]$LogLevel,
     [switch]$Default
 )
 
@@ -50,6 +51,15 @@ if ($LogPath) {
     }
     Lockdown -log "Changing LogPath policy: $($config.LogPath) -> $LogPath" 
     $config.LogPath = $LogPath
+}
+if ($LogLevel) {
+    if ("MESSAGE" -eq $LogLevel) {
+        $config.LogLevel = "MESSAGE"
+    } elseif ("VERBOSE" -eq $LogLevel) {
+        $config.LogLevel = "VERBOSE"
+    } else {
+        Write-Warning "LogLevel does not support `"$LogLevel`" as a policy. Please use `"MESSAGE`" or `"VERBOSE`""
+    }
 }
 if ($StatusFilePath) {
     if (-not(Test-Path $StatusFilePath)) {

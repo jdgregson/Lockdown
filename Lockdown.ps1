@@ -23,6 +23,7 @@ Param (
     [string]$Alert,
     [switch]$GetLog,
     [string]$Log,
+    [string]$LogVerbose,
     [switch]$GetWhitelist,
     [string]$Whitelist,
     [string]$CheckWhitelist,
@@ -105,12 +106,17 @@ function Get-Log {
 
 function Write-LogMessage {
     Param (
-        [string]$message
+        [string]$message,
+        [string]$logLevel = "message"
     )
 
     $timestamp = $(Get-Date -UFormat  "[%m/%d/%Y %H:%M:%S]")
-    if($message) {
-        "$timestamp`: $message" | Add-Content $config.LogPath -Encoding "UTF8"
+    if ($message) {
+        if ($logLevel -eq "message") {
+            "$timestamp` [M]: $message" | Add-Content $config.LogPath -Encoding "UTF8"
+        } elseif ($logLevel -eq "verbose" -and $config.LogLevel -eq "verbose") {
+            "$timestamp` [V]: $message" | Add-Content $config.LogPath -Encoding "UTF8"
+        }
     }
 }
 
@@ -270,19 +276,19 @@ function Enable-Lockdown {
     Register-WmiEvent -Query $Query -SourceIdentifier "LockdownQuery" -Action {
         $id = $EventArgs.NewEvent.TargetInstance["DeviceID"]
         if ((Lockdown -CheckWhitelist "$id") -eq "TRUE") {
-            Lockdown -log "Whitelisted device detected."
+            Lockdown -LogVerbose "Whitelisted device detected."
         } else {
-            Lockdown -log "New device detected. DeviceID: $id"
+            Lockdown -Log "New device detected. DeviceID: $id"
             if ((Get-LockdownPolicy -LockOnNewDevice) -eq "TRUE") {
-                Lockdown -lock
-                Lockdown -alert "New device detected#DeviceID: $id"
+                Lockdown -Lock
+                Lockdown -Alert "New device detected#DeviceID: $id"
             }
             if ((Get-LockdownPolicy -DisableNewDevice) -eq "TRUE") {
                 $result = (Disable-PnPDevice -InstanceID ($EventArgs.NewEvent.TargetInstance["DeviceID"]) -Confirm:$False -PassThru)
                 if ($result.Status -eq "OK") {
-                    Lockdown -log "Successfully disabled device: $id"
+                    Lockdown -Log "Successfully disabled device: $id"
                 } else {
-                    Lockdown -log "[ERROR] Failed to disabled device: $id"
+                    Lockdown -Log "[ERROR] Failed to disabled device: $id"
                 }
             }
         }
@@ -297,12 +303,12 @@ function Enable-Lockdown {
 
 
 $config = Get-LockdownPolicy
-if ($install) {
+if ($Install) {
     Install-LockdownTask
-} elseif ($disable) {
+} elseif ($Disable) {
     Set-LockdownPolicy -Status "DISABLED"
     Write-LogMessage "Stopped due to user request"
-} elseif ($enable) {
+} elseif ($Enable) {
     Set-LockdownPolicy -Status "ENABLED"
     Write-LogMessage "Started due to user request"
 } elseif ($GetWhitelist) {
@@ -313,23 +319,25 @@ if ($install) {
     Test-Whitelist $CheckWhitelist
 } elseif ($EditWhitelist) {
     Edit-Whitelist
-} elseif ($reload) {
+} elseif ($Reload) {
     Stop-LockdownTask
     Start-LockdownTask
     Write-LogMessage "Reloaded due to user request"
-} elseif ($lock) {
+} elseif ($Lock) {
     Lock-Workstation
-} elseif ($status) {
+} elseif ($Status) {
     Get-LockdownStatus
-} elseif ($message) {
-    Show-Message $message
-} elseif ($alert) {
-    Send-AlertToClient $alert
+} elseif ($Message) {
+    Show-Message $Message
+} elseif ($Alert) {
+    Send-AlertToClient $Alert
 } elseif ($GetLog) {
     Get-Log
-} elseif ($log) {
-    Write-LogMessage $log
-} elseif ($pulse) {
+} elseif ($Log) {
+    Write-LogMessage $Log
+} elseif ($LogVerbose) {
+    Write-LogMessage $LogVerbose -LogLevel "verbose"
+}  elseif ($Pulse) {
     Get-Pulse
 } elseif ($SetConfigPath) {
     Set-LockdownConfigPath (Read-Host "Enter the path to your config file")
