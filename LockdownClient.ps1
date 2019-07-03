@@ -78,7 +78,7 @@ function Show-LockdownClientIcon {
     $pulse = $(Get-LockdownPulse)
     $script:ICON = New-Object System.Windows.Forms.NotifyIcon
     $script:ICON.Icon = $BLUE_ICON_FILE
-    $script:ICON.Text = "LockdownClient is running`nHeartbeat: $pulse`nUpdated: $((Date).ToString('HH:mm:ss'))"
+    $script:ICON.Text = "Lockdown is running`nHeartbeat: $pulse`nUpdated: $((Date).ToString('HH:mm:ss'))"
     Register-ObjectEvent $script:ICON "MouseClick" -Action {Start PowerShell LockdownUI}
     $script:ICON.Visible = $True
 }

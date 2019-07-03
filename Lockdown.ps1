@@ -163,7 +163,7 @@ function Set-LockdownConfigPath {
 function Get-LockdownStatus {
     $scheduledTask = (Get-LockdownTask)
     if ($scheduledTask.getType().Name -eq "CimInstance") {
-        if($scheduledTask.State -eq "Running") {
+        if ($scheduledTask.State -eq "Running") {
             "Enabled"
         } else {
             "Disabled"
@@ -346,7 +346,7 @@ if ($Install) {
     Set-LockdownPolicy -Unapplied "FALSE" -NoReload
     if ($config.Status -eq "ENABLED") {
         Enable-Lockdown
-        While ($True) {
+        while ($True) {
             (Date).toString() > $config.StatusFilePath
             Sleep 1
         }

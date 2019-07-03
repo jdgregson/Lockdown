@@ -42,14 +42,14 @@ if ($DeviceWhitelistPath) {
     if (-not(Test-Path $DeviceWhitelistPath)) {
         Write-Warning "Could not find path `"$DeviceWhitelistPath`"."
     }
-    Lockdown -log "Changing DeviceWhitelistPath policy: $($config.DeviceWhitelistPath) -> $DeviceWhitelistPath" 
+    Lockdown -Log "Changing DeviceWhitelistPath policy: $($config.DeviceWhitelistPath) -> $DeviceWhitelistPath"
     $config.DeviceWhitelistPath = $DeviceWhitelistPath
 }
 if ($LogPath) {
     if (-not(Test-Path $LogPath)) {
         Write-Warning "Could not find path `"$LogPath`"."
     }
-    Lockdown -log "Changing LogPath policy: $($config.LogPath) -> $LogPath" 
+    Lockdown -Log "Changing LogPath policy: $($config.LogPath) -> $LogPath"
     $config.LogPath = $LogPath
 }
 if ($LogLevel) {
@@ -65,49 +65,49 @@ if ($StatusFilePath) {
     if (-not(Test-Path $StatusFilePath)) {
         Write-Warning "Could not find path `"$StatusFilePath`"."
     }
-    Lockdown -log "Changing StatusFilePath policy: $($config.StatusFilePath) -> $StatusFilePath" 
+    Lockdown -Log "Changing StatusFilePath policy: $($config.StatusFilePath) -> $StatusFilePath"
     $config.StatusFilePath = $StatusFilePath
 }
 if ($AlertFilePath) {
     if (-not(Test-Path $AlertFilePath)) {
         Write-Warning "Could not find path `"$AlertFilePath`"."
     }
-    Lockdown -log "Changing AlertFilePath policy: $($config.AlertFilePath) -> $StatusFilePath" 
+    Lockdown -Log "Changing AlertFilePath policy: $($config.AlertFilePath) -> $StatusFilePath"
     $config.AlertFilePath = $AlertFilePath
 }
 if ($LockOnNewDevice) {
     if ($LockOnNewDevice -eq "TRUE") {
-        Lockdown -log "Changing LockOnNewDevice policy: $($config.LockOnNewDevice) -> $LockOnNewDevice"
+        Lockdown -Log "Changing LockOnNewDevice policy: $($config.LockOnNewDevice) -> $LockOnNewDevice"
         $config.LockOnNewDevice = "TRUE"
     } elseif ($LockOnNewDevice -eq "FALSE") {
-        Lockdown -log "Changing LockOnNewDevice policy: $($config.LockOnNewDevice) -> $LockOnNewDevice"
+        Lockdown -Log "Changing LockOnNewDevice policy: $($config.LockOnNewDevice) -> $LockOnNewDevice"
         $config.LockOnNewDevice = "FALSE"
     } else {
-        Lockdown -log "Error changing LockOnNewDevice policy: `"$LockOnNewDevice`" is not a valid option" 
+        Lockdown -Log "Error changing LockOnNewDevice policy: `"$LockOnNewDevice`" is not a valid option"
         Write-Warning "LockOnNewDevice does not support `"$LockOnNewDevice`" as a policy. Please use `"LOCK`" or `"LOG`""
     }
 }
 if ($DisableNewDevice) {
     if ($DisableNewDevice -eq "TRUE") {
-        Lockdown -log "Changing DisableNewDevice policy: $($config.DisableNewDevice) -> $DisableNewDevice" 
+        Lockdown -Log "Changing DisableNewDevice policy: $($config.DisableNewDevice) -> $DisableNewDevice"
         $config.DisableNewDevice = "TRUE"
     } elseif ($DisableNewDevice -eq "FALSE") {
-        Lockdown -log "Changing DisableNewDevice policy: $($config.DisableNewDevice) -> $DisableNewDevice" 
+        Lockdown -Log "Changing DisableNewDevice policy: $($config.DisableNewDevice) -> $DisableNewDevice"
         $config.DisableNewDevice = "FALSE"
     } else {
-        Lockdown -log "Error changing DisableNewDevice policy: `"$DisableNewDevice`" is not a valid option" 
+        Lockdown -Log "Error changing DisableNewDevice policy: `"$DisableNewDevice`" is not a valid option"
         Write-Warning "DisableNewDevice does not support `"$DisableNewDevice`" as a policy. Please use `"LOCK`" or `"LOG`""
     }
 }
 if ($USBStorage) {
     if (("BLOCK", "BLOCKED", "DISABLE", "DISABLED") -contains $USBStorage) {
-        Lockdown -log "Changing USBStorage policy: $($config.USBStorage) -> $USBStorage"
+        Lockdown -Log "Changing USBStorage policy: $($config.USBStorage) -> $USBStorage"
         $config.USBStorage = "BLOCKED"
     } elseif (("UNBLOCK", "UNBLOCKED", "ENABLE", "ENABLED") -contains $USBStorage) {
-        Lockdown -log "Changing USBStorage policy: $($config.USBStorage) -> $USBStorage"
+        Lockdown -Log "Changing USBStorage policy: $($config.USBStorage) -> $USBStorage"
         $config.USBStorage = "UNBLOCKED"
     } else {
-        Lockdown -log "Error changing USBStorage policy: `"$USBStorage`" is not a valid option" 
+        Lockdown -Log "Error changing USBStorage policy: `"$USBStorage`" is not a valid option"
         Write-Warning "USBStorage does not support `"$USBStorage`" as a policy. Please use `"BLOCKED`" or `"UNBLOCKED`""
     }
 }
@@ -130,7 +130,7 @@ if ($Unapplied) {
     }
 }
 if ($Default) {
-    Lockdown -log "Restoring default policy"
+    Lockdown -Log "Restoring default policy"
     $config = Get-LockdownPolicy -Default
 }
 
@@ -144,6 +144,6 @@ if (-not([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentit
     if (-not($NoReload)) {
         $config.Unapplied = "FALSE"
         Save-NewPolicy $config
-        Lockdown -reload
+        Lockdown -Reload
     }
 }
