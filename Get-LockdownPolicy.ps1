@@ -32,9 +32,9 @@ function Get-DefaultPolicy {
         LogLevel = "MESSAGE"
         StatusFilePath = "C:\lockdown\var\lockdown.status"
         AlertFilePath = "C:\lockdown\var\lockdown.alert"
-        LockOnNewDevice = "TRUE"
-        DisableNewDevice = "TRUE"
-        USBStorage = "BLOCKED"
+        LockOnNewDevice = "FALSE"
+        DisableNewDevice = "FALSE"
+        USBStorage = "UNBLOCKED"
         Status = "ENABLED"
         Unapplied = "FALSE"
     }
