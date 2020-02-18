@@ -39,7 +39,6 @@ $USBStorageName = "Start"
 $URBStorageDisableValue = 4
 $URBStorageEnableValue = 3
 
-
 function Get-Whitelist {
     Get-Content $config.DeviceWhitelistPath
 }
@@ -272,8 +271,9 @@ function Stop-LockdownTask {
 
 
 function Enable-Lockdown {
-    $Query = "SELECT * FROM __InstanceCreationEvent Within 1 WHERE TargetInstance ISA 'Win32_PnPEntity'"
-    Register-WmiEvent -Query $Query -SourceIdentifier "LockdownQuery" -Action {
+    # Subscribe to WMI events about PnP devices
+    $WMIQuery = "SELECT * FROM __InstanceCreationEvent Within 1 WHERE TargetInstance ISA 'Win32_PnPEntity'"
+    Register-WmiEvent -Query $WMIQuery -SourceIdentifier "LockdownWMIEventSubscription-$(New-Guid)" -Action {
         $id = $EventArgs.NewEvent.TargetInstance["DeviceID"]
         if ((Lockdown -CheckWhitelist "$id") -eq "TRUE") {
             Lockdown -LogVerbose "Whitelisted device detected."
@@ -294,6 +294,48 @@ function Enable-Lockdown {
         }
     }
 
+    # Subscribe to events about Credential Manager access
+    $SecurityLog = Get-EventLog -List | Where-Object {$_.Log -eq "Security"}
+    Register-ObjectEvent -InputObject $SecurityLog -SourceIdentifier "LockdownCredentialGuardEventSubscription-$(New-Guid)" -EventName EntryWritten -Action {
+        $entry = $event.SourceEventArgs.Entry
+        $credentialGuardEventIds = 5379, 5380, 5381, 5382
+        if ($credentialGuardEventIds -contains $entry.EventID) {
+            $lastEvent = Get-WinEvent -FilterHashtable @{LogName="Security";Id="$($entry.EventID)"} -MaxEvents 1
+            $eventXml = ([xml]$lastEvent.ToXml()).Event
+            $eventXml.EventData.Data | ForEach-Object {
+                if ($_.Name -eq "ClientProcessId") {
+                    $clientPid = $_."#text"
+                }
+            }
+            $process = Get-Process -Id $clientPid -ErrorAction SilentlyContinue
+            if ($process) {
+                $processPath = $process.Path
+                $processName = $process.ProcessName
+                $processStatus = "running"
+            } else {
+                $processStatus = "exited"
+                $matchFound = $false
+                $processCreations = Get-WinEvent -FilterHashtable @{LogName="Security";Id=4688} -MaxEvents 200 | ForEach-Object {
+                    $searchPid = $_.Message -split "`n" | Where-Object {$_ -match " *New Process ID: *(.*)$"}
+                    $searchPid = $matches[1].trim()
+                    if ([Convert]::ToInt64($searchPid, 16) -eq $clientPid -and -not $matchFound) {
+                        $matchFound = $true
+                        $processPath = $_.Message -split "`n" | Where-Object {$_ -match " *New Process Name: *(.*)$"}
+                        $processPath = $matches[1].trim()
+                        $processName = $processPath
+                        $resolvedName = Resolve-Path $processPath -ErrorAction SilentlyContinue | Split-Path -Leaf
+                        if ($resolvedName) {
+                            $processName = $resolvedName
+                        }
+                    }
+                }
+            }
+            $message = "Event: $($entry.EventID), PID: $($clientPid), Process Status: $($processStatus), Process Name: $($processName), Process Path: $($processPath)"
+            $message | Add-Content "C:\lockdown\var\CredentialGuardAudit.log" -Encoding "UTF8"
+        }
+    }
+
+    # Block or unblock USB devices
     if ($config.USBStorage -eq "BLOCKED") {
         Set-ItemProperty -Path $USBStorageKey -Name $USBStorageName -Value $URBStorageDisableValue
     } elseif ($config.USBStorage -eq "UNBLOCKED") {
