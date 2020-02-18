@@ -1,0 +1,7 @@
+TODO:
+ [ ] install LockdownClient for all users when you install Lockdown as admin. It
+     may be possible to set a task to run on logon of any user. This would solve
+     most of the complexity. Just auto-run LockdownClient in the context of
+     whoever logs in.
+ [ ] Add a monitor and alert for cedential guard-related events -- it MUST
+     resolve the process ID to the process name and path.
