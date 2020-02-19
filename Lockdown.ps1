@@ -307,31 +307,18 @@ function Enable-Lockdown {
                     $clientPid = $_."#text"
                 }
             }
-            $process = Get-Process -Id $clientPid -ErrorAction SilentlyContinue
-            if ($process) {
-                $processPath = $process.Path
-                $processName = $process.ProcessName
-                $processStatus = "running"
+            $hexPID = "0x" + [System.Convert]::ToString($clientPid, 16)
+            $processCreation = Get-WinEvent -FilterXPath "*[System[EventID=4688] and EventData[Data[@Name='NewProcessId']='$hexPID']]" -LogName "Security" -MaxEvents 1 -ErrorAction SilentlyContinue
+            if ($processCreation) {
+                $eventXml = ([xml]$processCreation.ToXml()).Event
+                $processPath = ($eventXml.EventData.Data | Where-Object {$_.Name -eq "NewProcessName"})."#text"
+                $processName = $processPath | Split-Path -Leaf
+
+                $message = "Event: $($entry.EventID), Process ID: $($clientPid), Process Name: $($processName), Process Path: $($processPath)"
+                $message | Add-Content "C:\lockdown\var\CredentialGuardAudit.log" -Encoding "UTF8"
             } else {
-                $processStatus = "exited"
-                $matchFound = $false
-                $processCreations = Get-WinEvent -FilterHashtable @{LogName="Security";Id=4688} -MaxEvents 200 | ForEach-Object {
-                    $searchPid = $_.Message -split "`n" | Where-Object {$_ -match " *New Process ID: *(.*)$"}
-                    $searchPid = $matches[1].trim()
-                    if ([Convert]::ToInt64($searchPid, 16) -eq $clientPid -and -not $matchFound) {
-                        $matchFound = $true
-                        $processPath = $_.Message -split "`n" | Where-Object {$_ -match " *New Process Name: *(.*)$"}
-                        $processPath = $matches[1].trim()
-                        $processName = $processPath
-                        $resolvedName = Resolve-Path $processPath -ErrorAction SilentlyContinue | Split-Path -Leaf
-                        if ($resolvedName) {
-                            $processName = $resolvedName
-                        }
-                    }
-                }
+                Lockdown -Log "Credential Manager was accessed by an unidentified process."
             }
-            $message = "Event: $($entry.EventID), PID: $($clientPid), Process Status: $($processStatus), Process Name: $($processName), Process Path: $($processPath)"
-            $message | Add-Content "C:\lockdown\var\CredentialGuardAudit.log" -Encoding "UTF8"
         }
     }
 
