@@ -11,28 +11,52 @@
 # Author: Jonathan Gregson <jonathan@jdgregson.com>
 
 Param (
-    [string]$Catchall,
-    [string]$DeviceWhitelistPath,
-    [string]$LogPath,
-    [string]$StatusFilePath,
-    [string]$AlertFilePath,
-    [string]$LockOnNewDevice,
-    [string]$DisableNewDevice,
-    [string]$USBStorage,
-    [string]$Status,
-    [string]$Unapplied,
-    [switch]$NoReload,
-    [string]$LogLevel,
-    [switch]$Default
+    [String]$DeviceWhitelistPath,
+
+    [String]$LogPath,
+
+    [String]$StatusFilePath,
+
+    [String]$AlertFilePath,
+
+    [String]$LockOnNewDevice,
+
+    [String]$DisableNewDevice,
+
+    [String]$USBStorage,
+
+    [String]$Status,
+
+    [String]$Unapplied,
+
+    [Switch]$NoReload,
+
+    [String]$LogLevel,
+
+    [Switch]$Default
+
 )
 
 
 function Save-NewPolicy {
     Param (
-        [object]$config
+        [Object]$Config
     )
 
-    $config | Export-CliXml $env:LockdownConfig
+    $Config | Export-CliXml $env:LockdownConfig
+}
+
+
+function Log-PolicyChange {
+    Param (
+        [String]$Title,
+
+        [String]$OriginalValue,
+
+        [String]$NewValue
+    )
+
+    Lockdown -Log "Changing $Title policy: $OriginalValue -> $NewValue"
 }
 
 
@@ -42,14 +66,14 @@ if ($DeviceWhitelistPath) {
     if (-not(Test-Path $DeviceWhitelistPath)) {
         Write-Warning "Could not find path `"$DeviceWhitelistPath`"."
     }
-    Lockdown -Log "Changing DeviceWhitelistPath policy: $($config.DeviceWhitelistPath) -> $DeviceWhitelistPath"
+    Log-PolicyChange "DeviceWhitelistPath" $config.DeviceWhitelistPath $DeviceWhitelistPath
     $config.DeviceWhitelistPath = $DeviceWhitelistPath
 }
 if ($LogPath) {
     if (-not(Test-Path $LogPath)) {
         Write-Warning "Could not find path `"$LogPath`"."
     }
-    Lockdown -Log "Changing LogPath policy: $($config.LogPath) -> $LogPath"
+    Log-PolicyChange "LogPath" $config.LogPath $LogPath
     $config.LogPath = $LogPath
 }
 if ($LogLevel) {
@@ -65,22 +89,22 @@ if ($StatusFilePath) {
     if (-not(Test-Path $StatusFilePath)) {
         Write-Warning "Could not find path `"$StatusFilePath`"."
     }
-    Lockdown -Log "Changing StatusFilePath policy: $($config.StatusFilePath) -> $StatusFilePath"
+    Log-PolicyChange "StatusFilePath" $config.StatusFilePath $StatusFilePath
     $config.StatusFilePath = $StatusFilePath
 }
 if ($AlertFilePath) {
     if (-not(Test-Path $AlertFilePath)) {
         Write-Warning "Could not find path `"$AlertFilePath`"."
     }
-    Lockdown -Log "Changing AlertFilePath policy: $($config.AlertFilePath) -> $StatusFilePath"
+    Log-PolicyChange "AlertFilePath" $config.AlertFilePath $AlertFilePath
     $config.AlertFilePath = $AlertFilePath
 }
 if ($LockOnNewDevice) {
     if ($LockOnNewDevice -eq "TRUE") {
-        Lockdown -Log "Changing LockOnNewDevice policy: $($config.LockOnNewDevice) -> $LockOnNewDevice"
+        Log-PolicyChange "LockOnNewDevice" $config.LockOnNewDevice $LockOnNewDevice
         $config.LockOnNewDevice = "TRUE"
     } elseif ($LockOnNewDevice -eq "FALSE") {
-        Lockdown -Log "Changing LockOnNewDevice policy: $($config.LockOnNewDevice) -> $LockOnNewDevice"
+        Log-PolicyChange "LockOnNewDevice" $config.LockOnNewDevice $LockOnNewDevice
         $config.LockOnNewDevice = "FALSE"
     } else {
         Lockdown -Log "Error changing LockOnNewDevice policy: `"$LockOnNewDevice`" is not a valid option"
@@ -89,10 +113,10 @@ if ($LockOnNewDevice) {
 }
 if ($DisableNewDevice) {
     if ($DisableNewDevice -eq "TRUE") {
-        Lockdown -Log "Changing DisableNewDevice policy: $($config.DisableNewDevice) -> $DisableNewDevice"
+        Log-PolicyChange "DisableNewDevice" $config.DisableNewDevice $DisableNewDevice
         $config.DisableNewDevice = "TRUE"
     } elseif ($DisableNewDevice -eq "FALSE") {
-        Lockdown -Log "Changing DisableNewDevice policy: $($config.DisableNewDevice) -> $DisableNewDevice"
+        Log-PolicyChange "DisableNewDevice" $config.DisableNewDevice $DisableNewDevice
         $config.DisableNewDevice = "FALSE"
     } else {
         Lockdown -Log "Error changing DisableNewDevice policy: `"$DisableNewDevice`" is not a valid option"
@@ -101,10 +125,10 @@ if ($DisableNewDevice) {
 }
 if ($USBStorage) {
     if (("BLOCK", "BLOCKED", "DISABLE", "DISABLED") -contains $USBStorage) {
-        Lockdown -Log "Changing USBStorage policy: $($config.USBStorage) -> $USBStorage"
+        Log-PolicyChange "USBStorage" $config.USBStorage $USBStorage
         $config.USBStorage = "BLOCKED"
     } elseif (("UNBLOCK", "UNBLOCKED", "ENABLE", "ENABLED") -contains $USBStorage) {
-        Lockdown -Log "Changing USBStorage policy: $($config.USBStorage) -> $USBStorage"
+        Log-PolicyChange "USBStorage" $config.USBStorage $USBStorage
         $config.USBStorage = "UNBLOCKED"
     } else {
         Lockdown -Log "Error changing USBStorage policy: `"$USBStorage`" is not a valid option"
