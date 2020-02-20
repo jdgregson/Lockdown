@@ -1,24 +1,25 @@
-# Lockdown is a system hardening tool which applies, enforces, and reports on
-# various system hardening settings according to a "lockdown policy". For
-# example, it can lock the system when various USB devices are inserted, and
-# send alerts when backups are out of date or pre-defined anti-virus settings
-# and components are disabled.
-#
-# This file provides a system tray icon and desktop notifications for Lockdown.
-#
-# Copyright (C) jdgregson, 2019
+# File: LockdownClient.ps1
+# Project: Lockdown, https://github.com/jdgregson/Lockdown
+# Copyright (C) Jonathan Gregson, 2020
 # Author: Jonathan Gregson <jonathan@jdgregson.com>
 
 Param (
-    [switch]$alert,
-    [string]$message,
-    [string]$title = "Lockdown Alert",
-    [switch]$service,
-    [switch]$install
+    [Switch]$Alert,
+
+    [String]$Message,
+
+    [String]$Title = "Lockdown Alert",
+
+    [Switch]$Service,
+
+    [Switch]$Install
 )
-$BLUE_ICON_FILE = "C:\lockdown\var\lock-blue.ico"
-$RED_ICON_FILE = "C:\lockdown\var\lock-red.ico"
-$ICON = $Null
+
+
+$blueFileIcon = "C:\lockdown\var\lock-blue.ico"
+$redFileIcon = "C:\lockdown\var\lock-red.ico"
+$icon = $null
+
 
 function Get-LockdownPulse {
     return (Lockdown -Pulse)
@@ -27,16 +28,16 @@ function Get-LockdownPulse {
 
 function Get-LastWakeTime {
     $evt = (Get-EventLog -LogName System -InstanceID 1 -Source "Microsoft-Windows-Power-Troubleshooter" -Newest 1)
-    return Date((($evt.Message -split "Wake Time: ")[1] -split "`n")[0])
+    Date((($evt.Message -split "Wake Time: ")[1] -split "`n")[0])
 }
 
 
 function Install-LockdownClientTask {
     Param (
-        [string]$TaskName = "LockdownClient"
+        [String]$TaskName = "LockdownClient"
     )
 
-    $task = (Get-ScheduledTask $TaskName -ErrorAction SilentlyContinue)
+    $task = Get-ScheduledTask $TaskName -ErrorAction SilentlyContinue
     if ($task) {
         $prompt = Read-Host "A scheduled task named `"$TaskName`" already exists. Would you like to replace it? (y/N)"
         if ($prompt -ne "y") {
@@ -45,22 +46,21 @@ function Install-LockdownClientTask {
         Write-Host "Stopping existing task..."
         $task | Stop-ScheduledTask
         Write-Host "Deleting existing task..."
-        $task | Unregister-ScheduledTask -Confirm:$False
+        $task | Unregister-ScheduledTask -Confirm:$false
     }
     Write-Host "Installing new scheduled task `"$TaskName`"..."
-    $action = New-ScheduledTaskAction -Execute 'Powershell.exe' `
-        -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSScriptRoot\Start-LockdownClient.ps1`""
+    $action = New-ScheduledTaskAction -Execute "Powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSScriptRoot\Start-LockdownClient.ps1`""
     $settings = New-ScheduledTaskSettingsSet
-    $settings.DisallowStartIfOnBatteries = $False
-    $settings.StopIfGoingOnBatteries = $False
-    $settings.Hidden = $True
+    $settings.DisallowStartIfOnBatteries = $false
+    $settings.StopIfGoingOnBatteries = $false
+    $settings.Hidden = $true
     $settings.ExecutionTimeLimit = "PT0S"
-    $settings.StartWhenAvailable = $True
-    $settings.AllowHardTerminate = $False
-    $trigger =  New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
+    $settings.StartWhenAvailable = $true
+    $settings.AllowHardTerminate = $false
+    $trigger = New-ScheduledTaskTrigger -Once -At Get-Date -RepetitionInterval (New-TimeSpan -Minutes 5)
     $task = Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $TaskName -Settings $settings
 
-    $task = (Get-ScheduledTask $TaskName -ErrorAction SilentlyContinue)
+    $task = Get-ScheduledTask $TaskName -ErrorAction SilentlyContinue
     if ($task) {
         Write-Host "The task installed successfully."
         $prompt = Read-Host "Would you like to start the task now? (Y/n)"
@@ -68,111 +68,111 @@ function Install-LockdownClientTask {
             $task | Start-ScheduledTask
         }
     } else {
-        Write-Warning "Cound not determine if the task installed successfully."
+        Write-Warning "Could not determine if the task installed successfully."
     }
 }
 
 
 function Show-LockdownClientIcon {
-    [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
-    $pulse = $(Get-LockdownPulse)
-    $script:ICON = New-Object System.Windows.Forms.NotifyIcon
-    $script:ICON.Icon = $BLUE_ICON_FILE
-    $script:ICON.Text = "Lockdown is running`nHeartbeat: $pulse`nUpdated: $((Date).ToString('HH:mm:ss'))"
+    [void][System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
+    $pulse = Get-LockdownPulse
+    $script:icon = New-Object System.Windows.Forms.NotifyIcon
+    $script:icon.Icon = $blueFileIcon
+    $script:icon.Text = "Lockdown is running`nHeartbeat: $pulse`nUpdated: $((Date).ToString('HH:mm:ss'))"
     Register-ObjectEvent $script:ICON "MouseClick" -Action {Start PowerShell LockdownUI}
-    $script:ICON.Visible = $True
+    $script:icon.Visible = $true
 }
 
 
 function Hide-LockdownClientIcon {
-    $script:ICON.Dispose()
+    $icon.Dispose()
 }
 
 
 function Update-LockdownClientIcon {
     Param (
-        [string]$text = "LockdownClient is running`nHeartbeat: $(Get-LockdownPulse)`nUpdated: $((Date).ToString('HH:mm:ss'))",
-        [string]$icon = $BLUE_ICON_FILE
+        [String]$Text = "LockdownClient is running`nHeartbeat: $(Get-LockdownPulse)`nUpdated: $((Date).ToString('HH:mm:ss'))",
+        [String]$Icon = $blueFileIcon
     )
 
-    $pulse = $(Get-LockdownPulse)
+    $pulse = Get-LockdownPulse
     if ($pulse -eq "Alive") {
-        $icon = $BLUE_ICON_FILE
+        $Icon = $blueFileIcon
     } else {
-        $icon = $RED_ICON_FILE
+        $Icon = $redFileIcon
     }
 
-    $script:ICON.Icon = $icon
-    $script:ICON.Text = $text
+    $script:icon.Icon = $Icon
+    $script:icon.Text = $Text
 }
 
 
 function Show-Message {
     Param (
-        [string]$title,
-        [string]$message
+        [String]$Title,
+
+        [String]$Message
     )
 
-    $FallbackNotification = @"
+    $fallbackNotification = @"
         Import-Module psui1 -Force -DisableNameChecking
-        Set-UIConsoleTitle "'$title'"
-        Set-UIConsoleIcon "'$RED_ICON_FILE'"
+        Set-UIConsoleTitle "'$Title'"
+        Set-UIConsoleIcon "'$redFileIcon'"
         Set-UIConsoleWidth 100
         Set-UIConsoleHeight 18
         Set-UIBufferSize 100 18
         Write-UIPaintedScreen "DarkRed"
         Set-UIConsoleColor "DarkRed "White"
-        Write-Host "'`n`n  $message`n'"
+        Write-Host "'`n`n  $Message`n'"
 
         `$oldY = (Get-UICursorPositionY)
-        Set-UIFocusedWindow -WindowTitle "'$title'"
+        Set-UIFocusedWindow -WindowTitle "'$Title'"
         Set-UICursorPosition 0 ((Get-UIConsoleHeight) - 1)
         Write-Host ("' '" * (Get-UIConsoleWidth))
         Set-UICursorPosition -X 1 -Y `$oldY
         Wait-AnyKey
 "@
-    if ($message -match "#") {
-        $title = $message.split("#")[0]
-        $message = $message.split("#")[1]
+    if ($Message -match "#") {
+        $Title = $Message.split("#")[0]
+        $Message = $Message.split("#")[1]
     }
     if (Get-Command "New-BurntToastNotification" -ErrorAction SilentlyContinue) {
-        New-BurntToastNotification -AppLogo $RED_ICON_FILE -Text $title,$message
+        New-BurntToastNotification -AppLogo $redFileIcon -Text $Title, $Message
     } else {
-        Start Powershell $FallbackNotification
+        Start Powershell $fallbackNotification
     }
 }
 
 
-if ($alert -and $message) {
-    Show-Message $title $message
-} elseif ($install) {
+if ($Alert -and $Message) {
+    Show-Message $Title $Message
+} elseif ($Install) {
     Install-LockdownClientTask
-} elseif ($service) {
+} elseif ($Service) {
     Show-LockdownClientIcon
-    $AlertedOnDeadPulse = $False
-    $config = (Get-LockdownPolicy)
-    while ($True) {
-        sleep 5
+    $alertedOnDeadPulse = $false
+    $config = Get-LockdownPolicy
+    while ($true) {
+        Start-Sleep 5
         Update-LockdownClientIcon
 
         if (Test-Path $config.AlertFilePath) {
-            $alertmsg = (Get-Content $config.AlertFilePath)
-            if ($alertmsg) {
-                LockdownClient -Alert -Message $alertmsg
+            $alertMessage = Get-Content $config.AlertFilePath
+            if ($alertMessage) {
+                LockdownClient -Alert -Message $alertMessage
                 Write-Host "" > $config.AlertFilePath
             }
         }
 
-        $pulse = (Get-LockdownPulse)
-        if ($pulse -eq "Dead" -and -not $AlertedOnDeadPulse) {
-            if (-not((Get-LastWakeTime) -lt (Date).AddSeconds(-10)) -or
-                    (Get-Item $config.StatusFilePath).LastWriteTime -gt (Date).AddSeconds(-30)) {
+        $pulse = Get-LockdownPulse
+        if ($pulse -eq "Dead" -and -not $alertedOnDeadPulse) {
+            if (-not ((Get-LastWakeTime) -lt (Date).AddSeconds(-10)) -or (Get-Item $config.StatusFilePath).LastWriteTime -gt (Date).AddSeconds(-30)) {
                 continue
             }
             LockdownClient -Alert -Title "Lockdown not running" -Message "Lockdown does not appear to be running as no pulse has been recorded for more than thrity seconds."
-            $AlertedOnDeadPulse = $True
+            $alertedOnDeadPulse = $true
         } elseif ($pulse -eq "Alive") {
-            $AlertedOnDeadPulse = $False
+            $alertedOnDeadPulse = $false
         }
     }
 } else {

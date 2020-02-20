@@ -1,55 +1,72 @@
-# Lockdown is a system hardening tool which applies, enforces, and reports on
-# various system hardening settings according to a "lockdown policy". For
-# example, it can lock the system when various USB devices are inserted, and
-# send alerts when backups are out of date or pre-defined anti-virus settings
-# and components are disabled.
-#
-# This file is used to retrieve the Lockdown policy. It must be run as an
-# administrator.
-#
-# Copyright (C) jdgregson, 2019
+# File: Get-LockdownPolicy.ps1
+# Project: Lockdown, https://github.com/jdgregson/Lockdown
+# Copyright (C) Jonathan Gregson, 2020
 # Author: Jonathan Gregson <jonathan@jdgregson.com>
 
 Param (
-    [switch]$DeviceWhitelistPath,
-    [switch]$LogPath,
-    [switch]$LogLevel,
-    [switch]$StatusFilePath,
-    [switch]$AlertFilePath,
-    [switch]$LockOnNewDevice,
-    [switch]$DisableNewDevice,
-    [switch]$USBStorage,
-    [switch]$Status,
-    [switch]$Unapplied,
-    [switch]$Default
+    [Switch]$DeviceWhitelistPath,
+
+    [Switch]$LogPath,
+
+    [Switch]$StatusFilePath,
+
+    [Switch]$AlertFilePath,
+
+    [Switch]$LockOnNewDevice,
+
+    [Switch]$DisableNewDevice,
+
+    [Switch]$DisableUSBStorage,
+
+    [Switch]$AuditCredentialEvents,
+
+    [Switch]$AlertOnCredentialEvents,
+
+    [Switch]$CredentialEventAuditLogPath,
+
+    [Switch]$CredentialEventWhitelistPath,
+
+    [Switch]$LockdownEnabled,
+
+    [Switch]$Unapplied,
+
+    [Switch]$NoReload,
+
+    [Switch]$LogLevel,
+
+    [Switch]$Default
 )
 
 
 function Get-DefaultPolicy {
-    return New-Object -Type PSObject -Property @{
+    New-Object -Type PSObject -Property @{
         DeviceWhitelistPath = "C:\lockdown\etc\whitelist"
         LogPath = "C:\lockdown\var\lockdown.log"
         LogLevel = "MESSAGE"
         StatusFilePath = "C:\lockdown\var\lockdown.status"
         AlertFilePath = "C:\lockdown\var\lockdown.alert"
-        LockOnNewDevice = "FALSE"
-        DisableNewDevice = "FALSE"
-        USBStorage = "UNBLOCKED"
-        Status = "ENABLED"
-        Unapplied = "FALSE"
+        LockOnNewDevice = $false
+        DisableNewDevice = $false
+        DisableUSBStorage = $false
+        AuditCredentialEvents = $false
+        AlertOnCredentialEvents = $false
+        CredentialEventAuditLogPath = "C:\lockdown\var\credential-event-audit.log"
+        CredentialEventWhitelistPath = "C:\lockdown\etc\credential-event-whitelist"
+        LockdownEnabled = $true
+        Unapplied = $false
     }
 }
 
 
 function Get-SavedPolicy {
-    if (($env:LockdownConfig -ne $Null) -and (Test-Path $env:LockdownConfig)) {
+    if (($env:LockdownConfig -ne $null) -and (Test-Path $env:LockdownConfig)) {
         $config = Import-CliXml $env:LockdownConfig
     }
-    if (-not($config) -or $config.GetType().Name -ne "PSCustomObject") {
-        Write-Warning "No valid config found at '$env:LockdownConfig' -- Loading default config"
+    if (-not $config -or $config.GetType().Name -ne "PSCustomObject") {
+        Write-Warning "No valid config found at `"$env:LockdownConfig`" -- Loading default config"
         $config = Get-DefaultPolicy
     }
-    return $config
+    $config
 }
 
 
@@ -58,27 +75,33 @@ if ($Default) {
     $config = Get-DefaultPolicy
 }
 if ($DeviceWhitelistPath) {
-    return $config.DeviceWhitelistPath
+    $config.DeviceWhitelistPath
 } elseif ($LogPath) {
-    return $config.LogPath
-} elseif ($StatusFilePath) {
-    return $config.StatusFilePath
-} elseif ($AlertFilePath) {
-    return $config.AlertFilePath
-} elseif ($LockOnNewDevice) {
-    return $config.LockOnNewDevice
-} elseif ($DisableNewDevice) {
-    return $config.DisableNewDevice
-} elseif ($ActionOnNetAdapter) {
-    return $config.ActionOnNetAdapter
-} elseif ($USBStorage) {
-    return $config.USBStorage
-} elseif ($Status) {
-    return $config.Status
-} elseif ($Unapplied) {
-    return $config.Unapplied
+    $config.LogPath
 } elseif ($LogLevel) {
-    return $config.LogLevel
-}  else {
-    return $config
+    $config.LogLevel
+} elseif ($StatusFilePath) {
+    $config.StatusFilePath
+} elseif ($AlertFilePath) {
+    $config.AlertFilePath
+} elseif ($LockOnNewDevice) {
+    $config.LockOnNewDevice
+} elseif ($DisableNewDevice) {
+    $config.DisableNewDevice
+} elseif ($DisableUSBStorage) {
+    $config.DisableUSBStorage
+} elseif ($AuditCredentialEvents) {
+    $config.AuditCredentialEvents
+} elseif ($AlertOnCredentialEvents) {
+    $config.AlertOnCredentialEvents
+} elseif ($CredentialEventAuditLogPath) {
+    $config.CredentialEventAuditLogPath
+} elseif ($CredentialEventWhitelistPath) {
+    $config.CredentialEventWhitelistPath
+} elseif ($LockdownEnabled) {
+    $config.LockdownEnabled
+} elseif ($Unapplied) {
+    $config.Unapplied
+} else {
+    $config
 }

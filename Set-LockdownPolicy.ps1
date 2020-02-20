@@ -1,13 +1,6 @@
-# Lockdown is a system hardening tool which applies, enforces, and reports on
-# various system hardening settings according to a "lockdown policy". For
-# example, it can lock the system when various USB devices are inserted, and
-# send alerts when backups are out of date or pre-defined anti-virus settings
-# and components are disabled.
-#
-# This file is used to configure and apply the Lockdown policy. It must be run
-# as an administrator.
-#
-# Copyright (C) jdgregson, 2019
+# File: Set-LockdownPolicy.ps1
+# Project: Lockdown, https://github.com/jdgregson/Lockdown
+# Copyright (C) Jonathan Gregson, 2020
 # Author: Jonathan Gregson <jonathan@jdgregson.com>
 
 Param (
@@ -23,18 +16,25 @@ Param (
 
     [String]$DisableNewDevice,
 
-    [String]$USBStorage,
+    [String]$DisableUSBStorage,
 
-    [String]$Status,
+    [String]$AuditCredentialEvents,
+
+    [String]$AlertOnCredentialEvents,
+
+    [String]$CredentialEventAuditLogPath,
+
+    [String]$CredentialEventWhitelistPath,
+
+    [String]$LockdownEnabled,
 
     [String]$Unapplied,
 
-    [Switch]$NoReload,
-
     [String]$LogLevel,
 
-    [Switch]$Default
+    [Switch]$NoReload,
 
+    [Switch]$Default
 )
 
 
@@ -47,126 +47,107 @@ function Save-NewPolicy {
 }
 
 
-function Log-PolicyChange {
+function Change-BooleanPolicy {
     Param (
-        [String]$Title,
+        [String]$SettingName,
+
+        [String]$OriginalValue,
+
+        [String]$NewValue,
+
+        [String[]]$Options = ($true, $false)
+    )
+
+    if ($Options -contains $NewValue) {
+        Lockdown -Log "Changing $SettingName policy: $OriginalValue -> $NewValue"
+        $script:config."$SettingName" = $NewValue
+    } else {
+        Lockdown -Log "Error changing $SettingName policy: `"$NewValue`" is not a valid option"
+        Write-Warning "$SettingName does not support `"$NewValue`" as a policy. Please use: $Options"
+    }
+}
+
+
+function Change-PathPolicy {
+    Param (
+        [String]$SettingName,
 
         [String]$OriginalValue,
 
         [String]$NewValue
     )
 
-    Lockdown -Log "Changing $Title policy: $OriginalValue -> $NewValue"
+    Lockdown -Log "Changing $SettingName policy: $OriginalValue -> $NewValue"
+    $script:config."$SettingName" = $NewValue
+    if (-not (Test-Path $NewValue)) {
+        Write-Warning "Could not find path `"$NewValue`", but applying the setting anyway."
+    }
+}
+
+
+function Test-UserIsAdmin {
+    ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")
 }
 
 
 $config = Get-LockdownPolicy
-$config.Unapplied = "TRUE"
+$config.Unapplied = $true
 if ($DeviceWhitelistPath) {
-    if (-not(Test-Path $DeviceWhitelistPath)) {
-        Write-Warning "Could not find path `"$DeviceWhitelistPath`"."
-    }
-    Log-PolicyChange "DeviceWhitelistPath" $config.DeviceWhitelistPath $DeviceWhitelistPath
-    $config.DeviceWhitelistPath = $DeviceWhitelistPath
+    Change-PathPolicy -SettingName "DeviceWhitelistPath" -OriginalValue $config.DeviceWhitelistPath -NewValue $DeviceWhitelistPath
 }
 if ($LogPath) {
-    if (-not(Test-Path $LogPath)) {
-        Write-Warning "Could not find path `"$LogPath`"."
-    }
-    Log-PolicyChange "LogPath" $config.LogPath $LogPath
-    $config.LogPath = $LogPath
+    Change-PathPolicy -SettingName "LogPath" -OriginalValue $config.LogPath -NewValue $LogPath
 }
 if ($LogLevel) {
-    if ("MESSAGE" -eq $LogLevel) {
-        $config.LogLevel = "MESSAGE"
-    } elseif ("VERBOSE" -eq $LogLevel) {
-        $config.LogLevel = "VERBOSE"
-    } else {
-        Write-Warning "LogLevel does not support `"$LogLevel`" as a policy. Please use `"MESSAGE`" or `"VERBOSE`""
-    }
+    Change-BooleanPolicy -SettingName "LogLevel" -OriginalValue $config.LogLevel -NewValue $LogLevel -Options "MESSAGE","VERBOSE"
 }
 if ($StatusFilePath) {
-    if (-not(Test-Path $StatusFilePath)) {
-        Write-Warning "Could not find path `"$StatusFilePath`"."
-    }
-    Log-PolicyChange "StatusFilePath" $config.StatusFilePath $StatusFilePath
-    $config.StatusFilePath = $StatusFilePath
+    Change-PathPolicy -SettingName "StatusFilePath" -OriginalValue $config.StatusFilePath -NewValue $StatusFilePath
 }
 if ($AlertFilePath) {
-    if (-not(Test-Path $AlertFilePath)) {
-        Write-Warning "Could not find path `"$AlertFilePath`"."
-    }
-    Log-PolicyChange "AlertFilePath" $config.AlertFilePath $AlertFilePath
-    $config.AlertFilePath = $AlertFilePath
+    Change-PathPolicy -SettingName "AlertFilePath" -OriginalValue $config.AlertFilePath -NewValue $AlertFilePath
 }
 if ($LockOnNewDevice) {
-    if ($LockOnNewDevice -eq "TRUE") {
-        Log-PolicyChange "LockOnNewDevice" $config.LockOnNewDevice $LockOnNewDevice
-        $config.LockOnNewDevice = "TRUE"
-    } elseif ($LockOnNewDevice -eq "FALSE") {
-        Log-PolicyChange "LockOnNewDevice" $config.LockOnNewDevice $LockOnNewDevice
-        $config.LockOnNewDevice = "FALSE"
-    } else {
-        Lockdown -Log "Error changing LockOnNewDevice policy: `"$LockOnNewDevice`" is not a valid option"
-        Write-Warning "LockOnNewDevice does not support `"$LockOnNewDevice`" as a policy. Please use `"LOCK`" or `"LOG`""
-    }
+    Change-BooleanPolicy -SettingName "LockOnNewDevice" -OriginalValue $config.LockOnNewDevice -NewValue $LockOnNewDevice
 }
 if ($DisableNewDevice) {
-    if ($DisableNewDevice -eq "TRUE") {
-        Log-PolicyChange "DisableNewDevice" $config.DisableNewDevice $DisableNewDevice
-        $config.DisableNewDevice = "TRUE"
-    } elseif ($DisableNewDevice -eq "FALSE") {
-        Log-PolicyChange "DisableNewDevice" $config.DisableNewDevice $DisableNewDevice
-        $config.DisableNewDevice = "FALSE"
-    } else {
-        Lockdown -Log "Error changing DisableNewDevice policy: `"$DisableNewDevice`" is not a valid option"
-        Write-Warning "DisableNewDevice does not support `"$DisableNewDevice`" as a policy. Please use `"LOCK`" or `"LOG`""
-    }
+    Change-BooleanPolicy -SettingName "DisableNewDevice" -OriginalValue $config.DisableNewDevice -NewValue $DisableNewDevice
 }
-if ($USBStorage) {
-    if (("BLOCK", "BLOCKED", "DISABLE", "DISABLED") -contains $USBStorage) {
-        Log-PolicyChange "USBStorage" $config.USBStorage $USBStorage
-        $config.USBStorage = "BLOCKED"
-    } elseif (("UNBLOCK", "UNBLOCKED", "ENABLE", "ENABLED") -contains $USBStorage) {
-        Log-PolicyChange "USBStorage" $config.USBStorage $USBStorage
-        $config.USBStorage = "UNBLOCKED"
-    } else {
-        Lockdown -Log "Error changing USBStorage policy: `"$USBStorage`" is not a valid option"
-        Write-Warning "USBStorage does not support `"$USBStorage`" as a policy. Please use `"BLOCKED`" or `"UNBLOCKED`""
-    }
+if ($DisableUSBStorage) {
+    Change-BooleanPolicy -SettingName "DisableUSBStorage" -OriginalValue $config.DisableUSBStorage -NewValue $DisableUSBStorage
 }
-if ($Status) {
-    if (("ENABLE", "ENABLED") -contains $Status) {
-        $config.Status = "ENABLED"
-    } elseif (("DISABLE", "DISABLED") -contains $Status) {
-        $config.Status = "DISABLED"
-    } else {
-        Write-Warning "Status does not support `"$Status`" as a policy. Please use `"ENABLED`" or `"DISABLED`""
-    }
+if ($AuditCredentialEvents) {
+    Change-BooleanPolicy -SettingName "AuditCredentialEvents" -OriginalValue $config.AuditCredentialEvents -NewValue $AuditCredentialEvents
+}
+if ($AlertOnCredentialEvents) {
+    Change-BooleanPolicy -SettingName "AlertOnCredentialEvents" -OriginalValue $config.AlertOnCredentialEvents -NewValue $AlertOnCredentialEvents
+}
+if ($CredentialEventAuditLogPath) {
+    Change-PathPolicy -SettingName "CredentialEventAuditLogPath" -OriginalValue $config.CredentialEventAuditLogPath -NewValue $CredentialEventAuditLogPath
+}
+if ($CredentialEventWhitelistPath) {
+    Change-PathPolicy -SettingName "CredentialEventWhitelistPath" -OriginalValue $config.CredentialEventWhitelistPath -NewValue $CredentialEventWhitelistPath
+}
+if ($LockdownEnabled) {
+    Change-BooleanPolicy -SettingName "LockdownEnabled" -OriginalValue $config.LockdownEnabled -NewValue $LockdownEnabled
 }
 if ($Unapplied) {
-    if ("FALSE" -eq $Unapplied) {
-        $config.Unapplied = "FALSE"
-    } elseif ("TRUE" -eq $Unapplied) {
-        $config.Unapplied = "TRUE"
-    } else {
-        Write-Warning "Unapplied does not support `"$Unapplied`" as a policy. Please use `"TRUE`" or `"FALSE`""
-    }
+    Change-BooleanPolicy -SettingName "Unapplied" -OriginalValue $config.Unapplied -NewValue $Unapplied
 }
 if ($Default) {
     Lockdown -Log "Restoring default policy"
     $config = Get-LockdownPolicy -Default
+    $config
 }
 
 
-if (-not([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
-        [Security.Principal.WindowsBuiltInRole] "Administrator")) {
+if (-not (Test-UserIsAdmin)) {
     Write-Warning "The lockdown policy can only be set by an administrator."
     return
 } else {
     Save-NewPolicy $config
-    if (-not($NoReload)) {
-        $config.Unapplied = "FALSE"
+    if (-not $NoReload) {
+        $config.Unapplied = $false
         Save-NewPolicy $config
         Lockdown -Reload
     }
