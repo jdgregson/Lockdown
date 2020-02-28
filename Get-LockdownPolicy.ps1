@@ -59,49 +59,49 @@ function Get-DefaultPolicy {
 
 
 function Get-SavedPolicy {
-    if (($env:LockdownConfig -ne $null) -and (Test-Path $env:LockdownConfig)) {
-        $config = Import-CliXml $env:LockdownConfig
+    if (($env:LockdownPolicyPath -ne $null) -and (Test-Path $env:LockdownPolicyPath)) {
+        $policy = Import-CliXml $env:LockdownPolicyPath
     }
-    if (-not $config -or $config.GetType().Name -ne "PSCustomObject") {
-        Write-Warning "No valid config found at `"$env:LockdownConfig`" -- Loading default config"
-        $config = Get-DefaultPolicy
+    if (-not $policy -or $policy.GetType().Name -ne "PSCustomObject") {
+        Write-Warning "No valid policy found at `"$env:LockdownPolicyPath`" -- Loading default policy"
+        $policy = Get-DefaultPolicy
     }
-    $config
+    $policy
 }
 
 
-$config = Get-SavedPolicy
+$policy = Get-SavedPolicy
 if ($Default) {
-    $config = Get-DefaultPolicy
+    $policy = Get-DefaultPolicy
 }
 if ($DeviceWhitelistPath) {
-    $config.DeviceWhitelistPath
+    $policy.DeviceWhitelistPath
 } elseif ($LogPath) {
-    $config.LogPath
+    $policy.LogPath
 } elseif ($LogLevel) {
-    $config.LogLevel
+    $policy.LogLevel
 } elseif ($StatusFilePath) {
-    $config.StatusFilePath
+    $policy.StatusFilePath
 } elseif ($AlertFilePath) {
-    $config.AlertFilePath
+    $policy.AlertFilePath
 } elseif ($LockOnNewDevice) {
-    $config.LockOnNewDevice
+    $policy.LockOnNewDevice
 } elseif ($DisableNewDevice) {
-    $config.DisableNewDevice
+    $policy.DisableNewDevice
 } elseif ($DisableUSBStorage) {
-    $config.DisableUSBStorage
+    $policy.DisableUSBStorage
 } elseif ($AuditCredentialEvents) {
-    $config.AuditCredentialEvents
+    $policy.AuditCredentialEvents
 } elseif ($AlertOnCredentialEvents) {
-    $config.AlertOnCredentialEvents
+    $policy.AlertOnCredentialEvents
 } elseif ($CredentialEventAuditLogPath) {
-    $config.CredentialEventAuditLogPath
+    $policy.CredentialEventAuditLogPath
 } elseif ($CredentialEventWhitelistPath) {
-    $config.CredentialEventWhitelistPath
+    $policy.CredentialEventWhitelistPath
 } elseif ($LockdownEnabled) {
-    $config.LockdownEnabled
+    $policy.LockdownEnabled
 } elseif ($Unapplied) {
-    $config.Unapplied
+    $policy.Unapplied
 } else {
-    $config
+    $policy
 }

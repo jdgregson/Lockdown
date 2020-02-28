@@ -44,7 +44,7 @@ Param (
 
     [Switch]$Pulse,
 
-    [Switch]$SetConfigPath,
+    [Switch]$SetPolicyPath,
 
     [Switch]$Service
 )
@@ -57,12 +57,12 @@ $USBStorageEnableValue = 3
 
 
 function Get-DeviceWhitelist {
-    Get-Content $config.DeviceWhitelistPath
+    Get-Content $policy.DeviceWhitelistPath
 }
 
 
 function Get-CredentialEventWhitelist {
-    Get-Content $config.CredentialEventWhitelistPath
+    Get-Content $policy.CredentialEventWhitelistPath
 }
 
 
@@ -71,12 +71,12 @@ function AddTo-DeviceWhitelist {
         [String]$DeviceID
     )
 
-    $DeviceID | Add-Content $config.DeviceWhitelistPath -Encoding "UTF8"
-    (Get-Content $config.DeviceWhitelistPath) -split "`n" | Sort-Object | Set-Content $config.DeviceWhitelistPath -Encoding "UTF8"
+    $DeviceID | Add-Content $policy.DeviceWhitelistPath -Encoding "UTF8"
+    (Get-Content $policy.DeviceWhitelistPath) -split "`n" | Sort-Object | Set-Content $policy.DeviceWhitelistPath -Encoding "UTF8"
 
-    $logEntries = Get-Content $config.LogPath
+    $logEntries = Get-Content $policy.LogPath
     $logEntries = $logEntries -replace $DeviceID,"***"
-    $logEntries | Set-Content $config.LogPath -Encoding "UTF8"
+    $logEntries | Set-Content $policy.LogPath -Encoding "UTF8"
 }
 
 
@@ -85,8 +85,8 @@ function AddTo-CredentialEventWhitelist {
         [String]$ProcessPath
     )
 
-    $ProcessPath | Add-Content $config.CredentialEventWhitelistPath -Encoding "UTF8"
-    (Get-Content $config.CredentialEventWhitelistPath) -split "`n" | Sort-Object | Set-Content $config.CredentialEventWhitelistPath -Encoding "UTF8"
+    $ProcessPath | Add-Content $policy.CredentialEventWhitelistPath -Encoding "UTF8"
+    (Get-Content $policy.CredentialEventWhitelistPath) -split "`n" | Sort-Object | Set-Content $policy.CredentialEventWhitelistPath -Encoding "UTF8"
 }
 
 
@@ -122,24 +122,24 @@ function Test-Whitelist {
 
 
 function Edit-DeviceWhitelist {
-    notepad.exe $config.DeviceWhitelistPath
+    notepad.exe $policy.DeviceWhitelistPath
 }
 
 
 function Edit-CredentialEventWhitelist {
-    notepad.exe $config.CredentialEventWhitelistPath
+    notepad.exe $policy.CredentialEventWhitelistPath
 }
 
 
 function Lock-Workstation {
-    $user = ((quser) -replace '^>', '') -replace '\s{2,}', ',' | ConvertFrom-Csv
+    $user = ((quser) -replace "^>", "") -replace "\s{2,}", "," | ConvertFrom-Csv
     tsdiscon $user.ID
     Write-LogMessage "Attempted to lock the workstation"
 }
 
 
 function Get-Log {
-    Get-Content $config.LogPath
+    Get-Content $policy.LogPath
 }
 
 
@@ -153,9 +153,9 @@ function Write-LogMessage {
     $timestamp = $(Get-Date -UFormat "[%m/%d/%Y %H:%M:%S]")
     if ($Message) {
         if ($LogLevel -eq "message") {
-            "$timestamp` [M]: $Message" | Add-Content $config.LogPath -Encoding "UTF8"
-        } elseif ($LogLevel -eq "verbose" -and $config.LogLevel -eq "verbose") {
-            "$timestamp` [V]: $Message" | Add-Content $config.LogPath -Encoding "UTF8"
+            "$timestamp` [M]: $Message" | Add-Content $policy.LogPath -Encoding "UTF8"
+        } elseif ($LogLevel -eq "verbose" -and $policy.LogLevel -eq "verbose") {
+            "$timestamp` [V]: $Message" | Add-Content $policy.LogPath -Encoding "UTF8"
         }
     }
 }
@@ -176,7 +176,7 @@ function Send-AlertToClient {
         [String]$Message
     )
 
-    $Message > $config.AlertFilePath
+    $Message > $policy.AlertFilePath
 }
 
 
@@ -189,18 +189,18 @@ function Get-LockdownTask {
 }
 
 
-function Get-LockdownConfigPath {
-    return $env:LockdownConfig
+function Get-LockdownPolicyPath {
+    return $env:LockdownPolicyPath
 }
 
 
-function Set-LockdownConfigPath {
+function Set-LockdownPolicyPath {
     Param (
         [String]$Path
     )
 
-    $env:LockdownConfig = $Path
-    [System.Environment]::SetEnvironmentVariable("LOCKDOWNCONFIG", $Path, [System.EnvironmentVariableTarget]::User)
+    $env:LockdownPolicyPath = $Path
+    [System.Environment]::SetEnvironmentVariable("LockdownPolicyPath", $Path, [System.EnvironmentVariableTarget]::User)
 }
 
 
@@ -219,11 +219,11 @@ function Get-LockdownStatus {
 
 
 function Get-Pulse {
-    $content = Get-Content $config.StatusFilePath
+    $content = Get-Content $policy.StatusFilePath
     $i = 0
     while ($content -eq $null -and $i -lt 10) {
         Start-Sleep 0.1
-        $content = Get-Content $config.StatusFilePath
+        $content = Get-Content $policy.StatusFilePath
         $i++
     }
 
@@ -251,13 +251,13 @@ function Install-LockdownTask {
         return
     }
 
-    $configPath = Get-LockdownConfigPath
-    if ($configPath -eq $null -or $configPath -eq "") {
-        Set-LockdownConfigPath (Read-Host "The Lockdown config path is currently not set. Enter the path to your config file")
+    $policyPath = Get-LockdownPolicyPath
+    if ($policyPath -eq $null -or $policyPath -eq "") {
+        Set-LockdownPolicyPath (Read-Host "The Lockdown policy path is currently not set. Enter the path to your policy file")
     } else {
-        $prompt = Read-Host "The Lockdown config path is currently set to `"$configPath`". Would you like to change it? (y/N)"
+        $prompt = Read-Host "The Lockdown policy path is currently set to `"$policyPath`". Would you like to change it? (y/N)"
         if ($prompt -eq "y") {
-            Set-LockdownConfigPath (Read-Host "Enter the path to your config file")
+            Set-LockdownPolicyPath (Read-Host "Enter the path to your policy file")
         }
     }
 
@@ -383,7 +383,7 @@ function Enable-Lockdown {
     }
 
     # Enable or disable USB devices
-    if ($config.DisableUSBStorage) {
+    if ($policy.DisableUSBStorage) {
         Set-ItemProperty -Path $USBStorageKey -Name $USBStorageName -Value $USBStorageDisableValue
     } else {
         Set-ItemProperty -Path $USBStorageKey -Name $USBStorageName -Value $USBStorageEnableValue
@@ -391,7 +391,7 @@ function Enable-Lockdown {
 }
 
 
-$config = Get-LockdownPolicy
+$policy = Get-LockdownPolicy
 $deviceWhitelist = Get-DeviceWhitelist
 $credentialEventWhitelist = Get-CredentialEventWhitelist
 if ($Install) {
@@ -436,18 +436,18 @@ if ($Install) {
     Write-LogMessage $Log
 } elseif ($LogVerbose) {
     Write-LogMessage $LogVerbose -LogLevel "verbose"
-}  elseif ($Pulse) {
+} elseif ($Pulse) {
     Get-Pulse
-} elseif ($SetConfigPath) {
-    Set-LockdownConfigPath (Read-Host "Enter the path to your config file")
+} elseif ($SetPolicyPath) {
+    Set-LockdownPolicyPath (Read-Host "Enter the path to your policy file")
 } elseif ($Service) {
     Write-LogMessage "Lockdown is starting..."
     Set-LockdownPolicy -Unapplied $false -NoReload
-    if ($config.LockdownEnabled) {
+    if ($policy.LockdownEnabled) {
         Enable-Lockdown
         while ($true) {
             try {
-                (Date).toString() > $config.StatusFilePath
+                (Date).toString() > $policy.StatusFilePath
             } catch {
             }
             Start-Sleep 1

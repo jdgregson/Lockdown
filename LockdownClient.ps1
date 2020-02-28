@@ -151,22 +151,22 @@ if ($Alert -and $Message) {
 } elseif ($Service) {
     Show-LockdownClientIcon
     $alertedOnDeadPulse = $false
-    $config = Get-LockdownPolicy
+    $policy = Get-LockdownPolicy
     while ($true) {
         Start-Sleep 5
         Update-LockdownClientIcon
 
-        if (Test-Path $config.AlertFilePath) {
-            $alertMessage = Get-Content $config.AlertFilePath
+        if (Test-Path $policy.AlertFilePath) {
+            $alertMessage = Get-Content $policy.AlertFilePath
             if ($alertMessage) {
                 LockdownClient -Alert -Message $alertMessage
-                Write-Host "" > $config.AlertFilePath
+                Write-Host "" > $policy.AlertFilePath
             }
         }
 
         $pulse = Get-LockdownPulse
         if ($pulse -eq "Dead" -and -not $alertedOnDeadPulse) {
-            if (-not ((Get-LastWakeTime) -lt (Date).AddSeconds(-10)) -or (Get-Item $config.StatusFilePath).LastWriteTime -gt (Date).AddSeconds(-30)) {
+            if (-not ((Get-LastWakeTime) -lt (Date).AddSeconds(-10)) -or (Get-Item $policy.StatusFilePath).LastWriteTime -gt (Date).AddSeconds(-30)) {
                 continue
             }
             LockdownClient -Alert -Title "Lockdown not running" -Message "Lockdown does not appear to be running as no pulse has been recorded for more than thrity seconds."

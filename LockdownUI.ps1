@@ -70,7 +70,7 @@ function Test-UserIsAdmin {
 
 function Get-LogLines {
     $logWidth = ((Get-UIConsoleWidth) - ($logWindowStart + 4))
-    $localLogContents = (Get-Content $config.LogPath -Tail ((Get-UIConsoleHeight) - 2))
+    $localLogContents = (Get-Content $policy.LogPath -Tail ((Get-UIConsoleHeight) - 2))
     $output = @()
     for ($i = 0; $i -lt $localLogContents.Count; $i++) {
         $line = $localLogContents[$i]
@@ -290,11 +290,11 @@ function Toggle-Control {
 
 function Get-LockdownControls {
     return @(
-        @("Lockdown status", $config.LockdownEnabled, $true, $false, "LockdownEnabled"),
-        @("Disable USB storage", $config.DisableUSBStorage, $true, $false, "DisableUSBStorage"),
-        @("Lock on new devices", $config.LockOnNewDevice, $true, $false, "LockOnNewDevice"),
-        @("Disable new devices", $config.DisableNewDevice, $true, $false, "DisableNewDevice"),
-        @("Alert on credential events", $config.AlertOnCredentialEvents, $true, $false, "AlertOnCredentialEvents"),
+        @("Lockdown status", $policy.LockdownEnabled, $true, $false, "LockdownEnabled"),
+        @("Disable USB storage", $policy.DisableUSBStorage, $true, $false, "DisableUSBStorage"),
+        @("Lock on new devices", $policy.LockOnNewDevice, $true, $false, "LockOnNewDevice"),
+        @("Disable new devices", $policy.DisableNewDevice, $true, $false, "DisableNewDevice"),
+        @("Alert on credential events", $policy.AlertOnCredentialEvents, $true, $false, "AlertOnCredentialEvents"),
         @("#APPLY")
     )
 }
@@ -332,7 +332,7 @@ function Get-LockdownMonitors {
 }
 
 
-$config = Get-LockdownPolicy
+$policy = Get-LockdownPolicy
 $selectedControl = 0
 $controls = Get-LockdownControls
 $monitors = Get-LockdownMonitors
@@ -366,7 +366,7 @@ while ($true) {
         }
     } elseif ($inputChar.Key -eq [System.ConsoleKey]::SpaceBar -or $inputChar.Key -eq [System.ConsoleKey]::Enter) {
         Toggle-Control $controls $selectedControl
-        $config = Get-LockdownPolicy
+        $policy = Get-LockdownPolicy
         $controls = Get-LockdownControls
         Draw-LockdownControls $controls $selectedControl
     } elseif ($inputChar.Key -eq [System.ConsoleKey]::Escape -or $inputChar.Key -eq "q") {

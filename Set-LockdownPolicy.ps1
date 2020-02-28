@@ -40,10 +40,10 @@ Param (
 
 function Save-NewPolicy {
     Param (
-        [Object]$Config
+        [Object]$Policy
     )
 
-    $Config | Export-CliXml $env:LockdownConfig
+    $Policy | Export-CliXml $env:LockdownPolicyPath
 }
 
 
@@ -60,7 +60,7 @@ function Change-BooleanPolicy {
 
     if ($Options -contains $NewValue) {
         Lockdown -Log "Changing $SettingName policy: $OriginalValue -> $NewValue"
-        $script:config."$SettingName" = $NewValue
+        $script:policy."$SettingName" = $NewValue
     } else {
         Lockdown -Log "Error changing $SettingName policy: `"$NewValue`" is not a valid option"
         Write-Warning "$SettingName does not support `"$NewValue`" as a policy. Please use: $Options"
@@ -78,7 +78,7 @@ function Change-PathPolicy {
     )
 
     Lockdown -Log "Changing $SettingName policy: $OriginalValue -> $NewValue"
-    $script:config."$SettingName" = $NewValue
+    $script:policy."$SettingName" = $NewValue
     if (-not (Test-Path $NewValue)) {
         Write-Warning "Could not find path `"$NewValue`", but applying the setting anyway."
     }
@@ -90,54 +90,54 @@ function Test-UserIsAdmin {
 }
 
 
-$config = Get-LockdownPolicy
-$config.Unapplied = $true
+$policy = Get-LockdownPolicy
+$policy.Unapplied = $true
 if ($DeviceWhitelistPath) {
-    Change-PathPolicy -SettingName "DeviceWhitelistPath" -OriginalValue $config.DeviceWhitelistPath -NewValue $DeviceWhitelistPath
+    Change-PathPolicy -SettingName "DeviceWhitelistPath" -OriginalValue $policy.DeviceWhitelistPath -NewValue $DeviceWhitelistPath
 }
 if ($LogPath) {
-    Change-PathPolicy -SettingName "LogPath" -OriginalValue $config.LogPath -NewValue $LogPath
+    Change-PathPolicy -SettingName "LogPath" -OriginalValue $policy.LogPath -NewValue $LogPath
 }
 if ($LogLevel) {
-    Change-BooleanPolicy -SettingName "LogLevel" -OriginalValue $config.LogLevel -NewValue $LogLevel -Options "MESSAGE","VERBOSE"
+    Change-BooleanPolicy -SettingName "LogLevel" -OriginalValue $policy.LogLevel -NewValue $LogLevel -Options "MESSAGE","VERBOSE"
 }
 if ($StatusFilePath) {
-    Change-PathPolicy -SettingName "StatusFilePath" -OriginalValue $config.StatusFilePath -NewValue $StatusFilePath
+    Change-PathPolicy -SettingName "StatusFilePath" -OriginalValue $policy.StatusFilePath -NewValue $StatusFilePath
 }
 if ($AlertFilePath) {
-    Change-PathPolicy -SettingName "AlertFilePath" -OriginalValue $config.AlertFilePath -NewValue $AlertFilePath
+    Change-PathPolicy -SettingName "AlertFilePath" -OriginalValue $policy.AlertFilePath -NewValue $AlertFilePath
 }
 if ($LockOnNewDevice) {
-    Change-BooleanPolicy -SettingName "LockOnNewDevice" -OriginalValue $config.LockOnNewDevice -NewValue $LockOnNewDevice
+    Change-BooleanPolicy -SettingName "LockOnNewDevice" -OriginalValue $policy.LockOnNewDevice -NewValue $LockOnNewDevice
 }
 if ($DisableNewDevice) {
-    Change-BooleanPolicy -SettingName "DisableNewDevice" -OriginalValue $config.DisableNewDevice -NewValue $DisableNewDevice
+    Change-BooleanPolicy -SettingName "DisableNewDevice" -OriginalValue $policy.DisableNewDevice -NewValue $DisableNewDevice
 }
 if ($DisableUSBStorage) {
-    Change-BooleanPolicy -SettingName "DisableUSBStorage" -OriginalValue $config.DisableUSBStorage -NewValue $DisableUSBStorage
+    Change-BooleanPolicy -SettingName "DisableUSBStorage" -OriginalValue $policy.DisableUSBStorage -NewValue $DisableUSBStorage
 }
 if ($AuditCredentialEvents) {
-    Change-BooleanPolicy -SettingName "AuditCredentialEvents" -OriginalValue $config.AuditCredentialEvents -NewValue $AuditCredentialEvents
+    Change-BooleanPolicy -SettingName "AuditCredentialEvents" -OriginalValue $policy.AuditCredentialEvents -NewValue $AuditCredentialEvents
 }
 if ($AlertOnCredentialEvents) {
-    Change-BooleanPolicy -SettingName "AlertOnCredentialEvents" -OriginalValue $config.AlertOnCredentialEvents -NewValue $AlertOnCredentialEvents
+    Change-BooleanPolicy -SettingName "AlertOnCredentialEvents" -OriginalValue $policy.AlertOnCredentialEvents -NewValue $AlertOnCredentialEvents
 }
 if ($CredentialEventAuditLogPath) {
-    Change-PathPolicy -SettingName "CredentialEventAuditLogPath" -OriginalValue $config.CredentialEventAuditLogPath -NewValue $CredentialEventAuditLogPath
+    Change-PathPolicy -SettingName "CredentialEventAuditLogPath" -OriginalValue $policy.CredentialEventAuditLogPath -NewValue $CredentialEventAuditLogPath
 }
 if ($CredentialEventWhitelistPath) {
-    Change-PathPolicy -SettingName "CredentialEventWhitelistPath" -OriginalValue $config.CredentialEventWhitelistPath -NewValue $CredentialEventWhitelistPath
+    Change-PathPolicy -SettingName "CredentialEventWhitelistPath" -OriginalValue $policy.CredentialEventWhitelistPath -NewValue $CredentialEventWhitelistPath
 }
 if ($LockdownEnabled) {
-    Change-BooleanPolicy -SettingName "LockdownEnabled" -OriginalValue $config.LockdownEnabled -NewValue $LockdownEnabled
+    Change-BooleanPolicy -SettingName "LockdownEnabled" -OriginalValue $policy.LockdownEnabled -NewValue $LockdownEnabled
 }
 if ($Unapplied) {
-    Change-BooleanPolicy -SettingName "Unapplied" -OriginalValue $config.Unapplied -NewValue $Unapplied
+    Change-BooleanPolicy -SettingName "Unapplied" -OriginalValue $policy.Unapplied -NewValue $Unapplied
 }
 if ($Default) {
     Lockdown -Log "Restoring default policy"
-    $config = Get-LockdownPolicy -Default
-    $config
+    $policy = Get-LockdownPolicy -Default
+    $policy
 }
 
 
@@ -145,10 +145,10 @@ if (-not (Test-UserIsAdmin)) {
     Write-Warning "The lockdown policy can only be set by an administrator."
     return
 } else {
-    Save-NewPolicy $config
+    Save-NewPolicy $policy
     if (-not $NoReload) {
-        $config.Unapplied = $false
-        Save-NewPolicy $config
+        $policy.Unapplied = $false
+        Save-NewPolicy $policy
         Lockdown -Reload
     }
 }
