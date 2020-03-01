@@ -26,6 +26,8 @@ Param (
 
     [Switch]$CredentialEventWhitelistPath,
 
+    [Switch]$CredentialEventBackoffTimeout,
+
     [Switch]$LockdownEnabled,
 
     [Switch]$Unapplied,
@@ -52,6 +54,7 @@ function Get-DefaultPolicy {
         AlertOnCredentialEvents = $false
         CredentialEventAuditLogPath = "C:\lockdown\var\credential-event-audit.log"
         CredentialEventWhitelistPath = "C:\lockdown\etc\credential-event-whitelist"
+        CredentialEventBackoffTimeout = 60
         LockdownEnabled = $true
         Unapplied = $false
     }
@@ -98,6 +101,8 @@ if ($DeviceWhitelistPath) {
     $policy.CredentialEventAuditLogPath
 } elseif ($CredentialEventWhitelistPath) {
     $policy.CredentialEventWhitelistPath
+} elseif ($CredentialEventBackoffTimeout) {
+    $policy.CredentialEventBackoffTimeout
 } elseif ($LockdownEnabled) {
     $policy.LockdownEnabled
 } elseif ($Unapplied) {

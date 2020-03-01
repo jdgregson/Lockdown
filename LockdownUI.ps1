@@ -131,7 +131,7 @@ function Draw-LockdownControls {
 
     for ($i = 0; $i -lt $controls.Count; $i++) {
         Set-UICursorPosition -X 2 -Y (2 * ($i+1))
-        if ($script:UnappliedChanges -eq $true) {
+        if ((Get-LockdownPolicy -Unapplied) -eq $true) {
             $title = "Unapplied changes!"
         } else {
             $title = " "
@@ -337,10 +337,6 @@ $selectedControl = 0
 $controls = Get-LockdownControls
 $monitors = Get-LockdownMonitors
 $logContents = Get-LogLines
-$unappliedChanges = $false
-if (Get-LockdownPolicy -Unapplied) {
-    $unappliedChanges = $true
-}
 Draw-MainUI
 while ($true) {
     $inputChar = [System.Console]::ReadKey($true)

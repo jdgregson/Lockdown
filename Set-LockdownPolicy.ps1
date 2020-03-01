@@ -26,6 +26,8 @@ Param (
 
     [String]$CredentialEventWhitelistPath,
 
+    [Int]$CredentialEventBackoffTimeout,
+
     [String]$LockdownEnabled,
 
     [String]$Unapplied,
@@ -47,6 +49,26 @@ function Save-NewPolicy {
 }
 
 
+function Log-Error {
+    Param (
+        [String]$Message
+    )
+
+    Lockdown -Log $Message
+    Write-Warning $Message
+}
+
+
+function Log-Success {
+    Param (
+        [String]$Message
+    )
+
+    Lockdown -Log $Message
+    Write-Host $Message
+}
+
+
 function Change-BooleanPolicy {
     Param (
         [String]$SettingName,
@@ -59,11 +81,10 @@ function Change-BooleanPolicy {
     )
 
     if ($Options -contains $NewValue) {
-        Lockdown -Log "Changing $SettingName policy: $OriginalValue -> $NewValue"
+        Log-Success "Changing $SettingName policy: $OriginalValue -> $NewValue"
         $script:policy."$SettingName" = $NewValue
     } else {
-        Lockdown -Log "Error changing $SettingName policy: `"$NewValue`" is not a valid option"
-        Write-Warning "$SettingName does not support `"$NewValue`" as a policy. Please use: $Options"
+        Log-Error "$SettingName does not support `"$NewValue`" as a policy. Please use: $Options"
     }
 }
 
@@ -77,11 +98,42 @@ function Change-PathPolicy {
         [String]$NewValue
     )
 
-    Lockdown -Log "Changing $SettingName policy: $OriginalValue -> $NewValue"
-    $script:policy."$SettingName" = $NewValue
     if (-not (Test-Path $NewValue)) {
-        Write-Warning "Could not find path `"$NewValue`", but applying the setting anyway."
+        Log-Error "Could not find path `"$NewValue`", but applying the setting anyway."
     }
+    Log-Success "Changing $SettingName policy: $OriginalValue -> $NewValue"
+    $script:policy."$SettingName" = $NewValue
+}
+
+
+function Change-IntPolicy {
+    Param (
+        [String]$SettingName,
+
+        [String]$OriginalValue,
+
+        [String]$NewValue,
+
+        [String]$Min = "undefined",
+
+        [String]$Max = "undefined"
+    )
+
+    $newValueInt = try {[Int]$NewValue} catch {$null}
+    if ($newValueInt -eq $null) {
+        Log-Error "Not changing setting $SettingName`: $NewValue is not an integer"
+        return
+    }
+    if ($Min -ne "undefined" -and $newValueInt -lt [Int]$Min) {
+        Log-Error "Not changing setting $SettingName`: $NewValue is less than the minimum value $Min"
+        return
+    }
+    if ($Max -ne "undefined" -and $newValueInt -gt [Int]$Max) {
+        Log-Error "Not changing setting $SettingName`: $NewValue is greater than the maximum value $Max"
+        return
+    }
+    Log-Success "Changing $SettingName policy: $OriginalValue -> $NewValue"
+    $script:policy."$SettingName" = $newValueInt
 }
 
 
@@ -127,6 +179,9 @@ if ($CredentialEventAuditLogPath) {
 }
 if ($CredentialEventWhitelistPath) {
     Change-PathPolicy -SettingName "CredentialEventWhitelistPath" -OriginalValue $policy.CredentialEventWhitelistPath -NewValue $CredentialEventWhitelistPath
+}
+if ($CredentialEventBackoffTimeout) {
+    Change-IntPolicy -SettingName "CredentialEventBackoffTimeout" -OriginalValue $policy.CredentialEventBackoffTimeout -NewValue $CredentialEventBackoffTimeout -Min -1
 }
 if ($LockdownEnabled) {
     Change-BooleanPolicy -SettingName "LockdownEnabled" -OriginalValue $policy.LockdownEnabled -NewValue $LockdownEnabled

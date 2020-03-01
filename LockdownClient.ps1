@@ -169,7 +169,7 @@ if ($Alert -and $Message) {
             if (-not ((Get-LastWakeTime) -lt (Date).AddSeconds(-10)) -or (Get-Item $policy.StatusFilePath).LastWriteTime -gt (Date).AddSeconds(-30)) {
                 continue
             }
-            LockdownClient -Alert -Title "Lockdown not running" -Message "Lockdown does not appear to be running as no pulse has been recorded for more than thrity seconds."
+            LockdownClient -Alert -Title "Lockdown not running" -Message "Lockdown does not appear to be running as no pulse has been recorded for more than thirty seconds."
             $alertedOnDeadPulse = $true
         } elseif ($pulse -eq "Alive") {
             $alertedOnDeadPulse = $false

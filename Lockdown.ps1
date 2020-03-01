@@ -321,17 +321,17 @@ function Stop-LockdownTask {
 function Enable-Lockdown {
     # Subscribe to WMI events about PnP devices
     $WMIQuery = "SELECT * FROM __InstanceCreationEvent Within 1 WHERE TargetInstance ISA 'Win32_PnPEntity'"
-    Register-WmiEvent -Query $WMIQuery -SourceIdentifier "LockdownWMIEventSubscription-$(New-Guid)" -Action {
+    Register-WmiEvent -Query $WMIQuery -SourceIdentifier "LockdownWMIEventSubscription-$instanceId" -Action {
         $id = $EventArgs.NewEvent.TargetInstance["DeviceID"]
         if (Lockdown -CheckDeviceWhitelist $id) {
             Lockdown -LogVerbose "Whitelisted device detected."
         } else {
             Lockdown -Log "New device detected. DeviceID: $id"
-            if (Get-LockdownPolicy -LockOnNewDevice) {
+            if ((Get-LockdownPolicy -LockOnNewDevice) -eq $true) {
                 Lockdown -Lock
                 Lockdown -Alert "New device detected#DeviceID: $id"
             }
-            if (Get-LockdownPolicy -DisableNewDevice) {
+            if ((Get-LockdownPolicy -DisableNewDevice) -eq $true) {
                 $result = (Disable-PnPDevice -InstanceID ($EventArgs.NewEvent.TargetInstance["DeviceID"]) -Confirm:$false -PassThru)
                 if ($result.Status -eq "OK") {
                     Lockdown -Log "Successfully disabled device: $id"
@@ -344,7 +344,7 @@ function Enable-Lockdown {
 
     # Subscribe to events about Credential Manager access
     $SecurityLog = Get-EventLog -List | Where-Object {$_.Log -eq "Security"}
-    Register-ObjectEvent -InputObject $SecurityLog -SourceIdentifier "LockdownCredentialGuardEventSubscription-$(New-Guid)" -EventName EntryWritten -Action {
+    Register-ObjectEvent -InputObject $SecurityLog -SourceIdentifier "LockdownCredentialGuardEventSubscription-$instanceId" -EventName EntryWritten -Action {
         $entry = $event.SourceEventArgs.Entry
         $eventId = $entry.EventID
         $credentialGuardEventIds = 5379, 5380, 5381, 5382
@@ -362,21 +362,46 @@ function Enable-Lockdown {
                 $eventXml = ([xml]$processCreation.ToXml()).Event
                 $processPath = ($eventXml.EventData.Data | Where-Object {$_.Name -eq "NewProcessName"})."#text"
                 $processName = $processPath | Split-Path -Leaf
+            } else {
+                $processPath = "N/A"
+                $processName = "N/A"
+            }
 
-                if (Get-LockdownPolicy -AuditCredentialEvents) {
-                    $message = "$(Get-Date), Event ID: $eventId, Process ID: $clientPid, Process Name: $processName, Process Path: $processPath"
-                    $message | Add-Content (Get-LockdownPolicy -CredentialEventAuditLogPath) -Encoding "UTF8"
+            $backoff = $false
+            $backoffTimeout = (Get-LockdownPolicy -CredentialEventBackoffTimeout)
+            if (-not $script:credentialEventBackoffList) {
+                $script:credentialEventBackoffList = @()
+            }
+            if ($backoffTimeout) {
+                # Remove expired entries from the backoff list
+                $backoffList = $script:credentialEventBackoffList | Where-Object {
+                    $_.StartTime.AddSeconds($backoffTimeout) -gt (Get-Date)
                 }
-                if (-not (Lockdown -CheckCredentialEventWhitelist $processPath)) {
-                    if (Get-LockdownPolicy -AlertOnCredentialEvents) {
+                # Check if this process is on the backoff list
+                $backoffList | ForEach-Object {
+                    if ($_.TestString -eq $processPath) {
+                        $backoff = $true
+                    }
+                }
+                # Add this process to the backoff list if not already on it
+                if (-not $backoff -and $processPath -ne "N/A") {
+                    $backoffList += New-Object -Type PSObject -Property @{
+                        StartTime = (Get-Date)
+                        TestString = $processPath
+                    }
+                }
+                $script:credentialEventBackoffList = $backoffList
+            }
+            if ((Get-LockdownPolicy -AuditCredentialEvents) -eq $true) {
+                $message = "$(Get-Date), Event ID: $eventId, Process ID: $clientPid, Process Name: $processName, Process Path: $processPath"
+                $message | Add-Content (Get-LockdownPolicy -CredentialEventAuditLogPath) -Encoding "UTF8"
+            }
+            if (-not $backoff) {
+                if ((Lockdown -CheckCredentialEventWhitelist $processPath) -eq $false) {
+                    if ((Get-LockdownPolicy -AlertOnCredentialEvents) -eq $true) {
                         $message = "A process has accessed the Credential Manager. Process: $processPath"
                         Lockdown -Alert $message
                     }
-                }
-            } else {
-                Lockdown -Log "Credential Manager was accessed by an unidentified process."
-                if (Get-LockdownPolicy -AlertOnCredentialEvents) {
-                    Lockdown -Alert "Credential Manager was accessed by an unidentified process."
                 }
             }
         }
@@ -392,8 +417,7 @@ function Enable-Lockdown {
 
 
 $policy = Get-LockdownPolicy
-$deviceWhitelist = Get-DeviceWhitelist
-$credentialEventWhitelist = Get-CredentialEventWhitelist
+$instanceId = New-Guid
 if ($Install) {
     Install-LockdownTask
 } elseif ($Disable) {
@@ -403,17 +427,17 @@ if ($Install) {
     Set-LockdownPolicy -LockdownEnabled $true
     Write-LogMessage "Started due to user request"
 } elseif ($GetDeviceWhitelist) {
-    return $deviceWhitelist
+    Get-DeviceWhitelist
 } elseif ($GetCredentialEventWhitelist) {
-    return $credentialEventWhitelist
+    Get-CredentialEventWhitelist
 } elseif ($WhitelistDevice) {
     AddTo-DeviceWhitelist $WhitelistDevice
 } elseif ($WhitelistCredentialEvent) {
     AddTo-CredentialEventWhitelist $WhitelistCredentialEvent
 } elseif ($CheckDeviceWhitelist) {
-    Test-Whitelist $CheckDeviceWhitelist $deviceWhitelist
+    Test-Whitelist $CheckDeviceWhitelist (Get-DeviceWhitelist)
 } elseif ($CheckCredentialEventWhitelist) {
-    Test-Whitelist $CheckCredentialEventWhitelist $credentialEventWhitelist
+    Test-Whitelist $CheckCredentialEventWhitelist (Get-CredentialEventWhitelist)
 } elseif ($EditDeviceWhitelist) {
     Edit-DeviceWhitelist
 } elseif ($EditCredentialEventWhitelist) {
@@ -441,7 +465,8 @@ if ($Install) {
 } elseif ($SetPolicyPath) {
     Set-LockdownPolicyPath (Read-Host "Enter the path to your policy file")
 } elseif ($Service) {
-    Write-LogMessage "Lockdown is starting..."
+    Start-Transcript -Path "C:\lockdown\var\lockdown-transcript-$instanceId.log" -IncludeInvocationHeader
+    Write-LogMessage "Lockdown is starting, instanceId: $instanceId..."
     Set-LockdownPolicy -Unapplied $false -NoReload
     if ($policy.LockdownEnabled) {
         Enable-Lockdown
