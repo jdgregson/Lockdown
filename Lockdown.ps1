@@ -322,6 +322,7 @@ function Enable-Lockdown {
     # Subscribe to WMI events about PnP devices
     $WMIQuery = "SELECT * FROM __InstanceCreationEvent Within 1 WHERE TargetInstance ISA 'Win32_PnPEntity'"
     Register-WmiEvent -Query $WMIQuery -SourceIdentifier "LockdownWMIEventSubscription-$instanceId" -Action {
+        $localId = New-Guid
         $id = $EventArgs.NewEvent.TargetInstance["DeviceID"]
         if (Lockdown -CheckDeviceWhitelist $id) {
             Lockdown -LogVerbose "Whitelisted device detected."
@@ -349,6 +350,7 @@ function Enable-Lockdown {
         $eventId = $entry.EventID
         $credentialGuardEventIds = 5379, 5380, 5381, 5382
         if ($credentialGuardEventIds -contains $eventId) {
+            $localId = New-Guid
             $lastEvent = Get-WinEvent -FilterHashtable @{LogName="Security";Id=$eventId} -MaxEvents 1
             $eventXml = ([xml]$lastEvent.ToXml()).Event
             $eventXml.EventData.Data | ForEach-Object {
@@ -374,9 +376,9 @@ function Enable-Lockdown {
             }
             if ($backoffTimeout) {
                 # Remove expired entries from the backoff list
-                $backoffList = $script:credentialEventBackoffList | Where-Object {
+                $backoffList = @($script:credentialEventBackoffList | Where-Object {
                     $_.StartTime.AddSeconds($backoffTimeout) -gt (Get-Date)
-                }
+                })
                 # Check if this process is on the backoff list
                 $backoffList | ForEach-Object {
                     if ($_.TestString -eq $processPath) {
