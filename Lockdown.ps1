@@ -323,21 +323,29 @@ function Enable-Lockdown {
     $WMIQuery = "SELECT * FROM __InstanceCreationEvent Within 1 WHERE TargetInstance ISA 'Win32_PnPEntity'"
     Register-WmiEvent -Query $WMIQuery -SourceIdentifier "LockdownWMIEventSubscription-$instanceId" -Action {
         $localId = New-Guid
+        #Write-Host "[$(Get-Date)] [$localId] Got PNP event"
         $id = $EventArgs.NewEvent.TargetInstance["DeviceID"]
+        #Write-Host "[$(Get-Date)] [$localId] Device ID: $id"
         if (Lockdown -CheckDeviceWhitelist $id) {
+            #Write-Host "[$(Get-Date)] [$localId] Device is whitelisted"
             Lockdown -LogVerbose "Whitelisted device detected."
         } else {
+            #Write-Host "[$(Get-Date)] [$localId] Device is not whitelisted"
             Lockdown -Log "New device detected. DeviceID: $id"
             if ((Get-LockdownPolicy -LockOnNewDevice) -eq $true) {
+                #Write-Host "[$(Get-Date)] [$localId] Locking and alerting"
                 Lockdown -Lock
                 Lockdown -Alert "New device detected#DeviceID: $id"
             }
             if ((Get-LockdownPolicy -DisableNewDevice) -eq $true) {
+                #Write-Host "[$(Get-Date)] [$localId] Disabling the device"
                 $result = (Disable-PnPDevice -InstanceID ($EventArgs.NewEvent.TargetInstance["DeviceID"]) -Confirm:$false -PassThru)
                 if ($result.Status -eq "OK") {
                     Lockdown -Log "Successfully disabled device: $id"
+                    #Write-Host "[$(Get-Date)] [$localId] Disabling succeeded"
                 } else {
                     Lockdown -Log "[ERROR] Failed to disabled device: $id"
+                    #Write-Host "[$(Get-Date)] [$localId] Disabling failed"
                 }
             }
         }
@@ -348,9 +356,11 @@ function Enable-Lockdown {
     Register-ObjectEvent -InputObject $SecurityLog -SourceIdentifier "LockdownCredentialGuardEventSubscription-$instanceId" -EventName EntryWritten -Action {
         $entry = $event.SourceEventArgs.Entry
         $eventId = $entry.EventID
+        $shells = "cmd.exe", "powershell.exe", "python.exe"
         $credentialGuardEventIds = 5379, 5380, 5381, 5382
         if ($credentialGuardEventIds -contains $eventId) {
             $localId = New-Guid
+            #Write-Host "[$(Get-Date)] [$localId] Got credential guard event"
             $lastEvent = Get-WinEvent -FilterHashtable @{LogName="Security";Id=$eventId} -MaxEvents 1
             $eventXml = ([xml]$lastEvent.ToXml()).Event
             $eventXml.EventData.Data | ForEach-Object {
@@ -363,45 +373,67 @@ function Enable-Lockdown {
             if ($processCreation) {
                 $eventXml = ([xml]$processCreation.ToXml()).Event
                 $processPath = ($eventXml.EventData.Data | Where-Object {$_.Name -eq "NewProcessName"})."#text"
+                $commandLine = ($eventXml.EventData.Data | Where-Object {$_.Name -eq "CommandLine"})."#text"
                 $processName = $processPath | Split-Path -Leaf
+                #Write-Host "[$(Get-Date)] [$localId] Found the process: $processPath"
+                #Write-Host "[$(Get-Date)] [$localId] Process command line: $commandLine"
             } else {
                 $processPath = "N/A"
                 $processName = "N/A"
+                #Write-Host "[$(Get-Date)] [$localId] Couldn't find the process"
             }
 
             $backoff = $false
             $backoffTimeout = (Get-LockdownPolicy -CredentialEventBackoffTimeout)
             if (-not $script:credentialEventBackoffList) {
                 $script:credentialEventBackoffList = @()
+                #Write-Host "[$(Get-Date)] [$localId] Created a new backoff list"
             }
             if ($backoffTimeout) {
                 # Remove expired entries from the backoff list
                 $backoffList = @($script:credentialEventBackoffList | Where-Object {
                     $_.StartTime.AddSeconds($backoffTimeout) -gt (Get-Date)
                 })
-                # Check if this process is on the backoff list
+                # Check if this process or shell command line is on the backoff list
                 $backoffList | ForEach-Object {
-                    if ($_.TestString -eq $processPath) {
+                    if ($shells -contains $processName) {
+                        if ((-not [String]::IsNullOrEmpty($commandLine)) -and $_.TestString -eq $commandLine) {
+                            $backoff = $true
+                        }
+                    } elseif ($_.TestString -eq $processPath) {
+                        #Write-Host "[$(Get-Date)] [$localId] The process was in the backoff list"
                         $backoff = $true
                     }
                 }
                 # Add this process to the backoff list if not already on it
                 if (-not $backoff -and $processPath -ne "N/A") {
-                    $backoffList += New-Object -Type PSObject -Property @{
-                        StartTime = (Get-Date)
-                        TestString = $processPath
+                    #Write-Host "[$(Get-Date)] [$localId] Adding this process to the backoff list"
+                    $processPath, $commandLine | ForEach-Object {
+                        if (-not [String]::IsNullOrEmpty($_)) {
+                            $backoffList += New-Object -Type PSObject -Property @{
+                                StartTime = (Get-Date)
+                                TestString = $_
+                            }
+                        }
                     }
                 }
                 $script:credentialEventBackoffList = $backoffList
             }
             if ((Get-LockdownPolicy -AuditCredentialEvents) -eq $true) {
+                #Write-Host "[$(Get-Date)] [$localId] Logging the credential guard event in the audit log"
                 $message = "$(Get-Date), Event ID: $eventId, Process ID: $clientPid, Process Name: $processName, Process Path: $processPath"
                 $message | Add-Content (Get-LockdownPolicy -CredentialEventAuditLogPath) -Encoding "UTF8"
             }
             if (-not $backoff) {
                 if ((Lockdown -CheckCredentialEventWhitelist $processPath) -eq $false) {
+                    #Write-Host "[$(Get-Date)] [$localId] The credential guard event is not whitelisted"
                     if ((Get-LockdownPolicy -AlertOnCredentialEvents) -eq $true) {
-                        $message = "A process has accessed the Credential Manager. Process: $processPath"
+                        #Write-Host "[$(Get-Date)] [$localId] Alerting about credential access"
+                        if ($shells -contains $processName) {
+                            $message = "A script has accessed the Credential Manager. Command line: $commandLine"
+                        } else {
+                            $message = "A process has accessed the Credential Manager. Process: $processPath"
+                        }
                         Lockdown -Alert $message
                     }
                 }
@@ -411,8 +443,10 @@ function Enable-Lockdown {
 
     # Enable or disable USB devices
     if ($policy.DisableUSBStorage) {
+        Write-Host "Disabling USB storage"
         Set-ItemProperty -Path $USBStorageKey -Name $USBStorageName -Value $USBStorageDisableValue
     } else {
+        Write-Host "Enabling USB storage"
         Set-ItemProperty -Path $USBStorageKey -Name $USBStorageName -Value $USBStorageEnableValue
     }
 }
